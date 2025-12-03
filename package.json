@@ -22,7 +22,7 @@
     "dotenv": "^17.2.3",
     "fast-xml-parser": "^5.3.0",
     "inngest": "^3.44.3",
-    "next": "15.5.6",
+    "next": "15.5.7",
     "pdf-parse": "^2.4.5",
     "react": "19.1.0",
     "react-dom": "19.1.0"
