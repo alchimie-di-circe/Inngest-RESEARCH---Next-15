@@ -40,12 +40,12 @@ echo "✓ Node dependencies ready"
 echo "✓ Verifying Inngest CLI..."
 inngest --version
 
-# 6. Setup database
-echo "✓ Setting up database..."
-
-# Pre-check: DATABASE_URL must be set and valid
-if [ -z "$DATABASE_URL" ]; then
-  echo "⚠️ DATABASE_URL not set, skipping database setup"
+echo "✓ Setting up Git hooks..."
+if [ -x "node_modules/.bin/husky" ]; then
+  npx husky install
+else
+  echo "⚠️ Husky not installed (node_modules/.bin/husky missing), Git hooks setup skipped"
+fi
   echo "   Set DATABASE_URL to enable automatic schema sync"
 elif ! [[ "$DATABASE_URL" =~ ^(postgresql|postgres):// ]]; then
   echo "❌ ERROR: DATABASE_URL format invalid"
