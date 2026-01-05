@@ -4,7 +4,7 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
-    "inngestdev": "inngest-cli dev --no-poll",
+    "inngestdev": "inngest dev --no-poll",
     "devall": "concurrently \"npm run dev\" \"npm run inngestdev\"",
     "build": "next build",
     "start": "next start",
