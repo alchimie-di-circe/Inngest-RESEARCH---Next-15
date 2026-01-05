@@ -32,7 +32,7 @@ echo "✓ Setting up Neon database connection..."
 if [ -z "$DATABASE_URL" ]; then
   echo "⚠ DATABASE_URL not set, skipping database setup"
 else
-  npx prisma db push --skip-generate 2>/dev/null || true
+  npx prisma db push --skip-generate
 fi
 
 # 7. Setup pre-commit hooks
