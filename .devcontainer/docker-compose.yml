@@ -6,17 +6,27 @@ services:
       context: ..
       dockerfile: .devcontainer/Dockerfile
     working_dir: /workspace
+    entrypoint: ["/workspace/.devcontainer/entrypoint.sh"]
     command: npm run dev
     volumes:
       - ..:/workspace:cached
+      - /var/run/docker.sock:/var/run/docker.sock:cached
     ports:
       - "3000:3000"
+      - "8288:8288"
     environment:
       NODE_ENV: development
       INNGEST_API_KEY: ${INNGEST_API_KEY:-}
       INNGEST_EVENT_KEY: ${INNGEST_EVENT_KEY:-}
-      DATABASE_URL: ${DATABASE_URL:-postgresql://inngest:inngest@postgres:5432/inngest}
+      DATABASE_URL: postgresql://${POSTGRES_USER:-inngest}:${POSTGRES_PASSWORD:-inngest}@postgres:5432/${POSTGRES_DB:-inngest}
       NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://localhost:3000}
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      REDIS_URL: redis://:${REDIS_PASSWORD:-changeme}@redis:6379
+      POSTGRES_USER: ${POSTGRES_USER:-inngest}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-inngest}
+      POSTGRES_DB: ${POSTGRES_DB:-inngest}
+      REDIS_PASSWORD: ${REDIS_PASSWORD:-changeme}
     depends_on:
       postgres:
         condition: service_healthy
@@ -51,7 +61,7 @@ services:
       - postgres-data:/var/lib/postgresql/data
       - ./initdb:/docker-entrypoint-initdb.d:ro
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U inngest"]
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-inngest}"]
       interval: 5s
       timeout: 5s
       retries: 10
@@ -61,8 +71,9 @@ services:
     restart: unless-stopped
     ports:
       - "6379:6379"
+    command: redis-server --requirepass ${REDIS_PASSWORD:-changeme}
     healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
+      test: ["CMD", "redis-cli", "-a", "${REDIS_PASSWORD:-changeme}", "ping"]
       interval: 5s
       timeout: 5s
       retries: 10

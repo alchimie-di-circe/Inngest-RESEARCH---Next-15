@@ -8,7 +8,7 @@ This repository ships with a production-grade DevContainer for the Inngest Resea
 - **Docker image**: `.devcontainer/Dockerfile` with Node.js 20, Docker CLI, and tooling
 - **Multi-container dev**: `.devcontainer/docker-compose.yml` with Next.js, Inngest, Postgres, Redis
 - **Automation**: `.devcontainer/postCreateCommand.sh`
-- **Secrets management**: `.envrc.example` (1Password + direnv)
+- **Secrets management**: `envrc.example` (1Password + direnv)
 - **Environment validation**: `scripts/verify-env.js`
 - **Zed**: `.zed/settings.json`
 - **Continue.dev**: `.continue/config.json`

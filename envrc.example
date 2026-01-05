@@ -1,21 +1,61 @@
 # Neon Database
-export DATABASE_URL=$(op read "op://YOUR_VAULT/neon-connection-string/password" 2>/dev/null || echo "")
+export DATABASE_URL=$(op read "op://YOUR_VAULT/neon-connection-string/password" 2>/dev/null)
+if [ -z "$DATABASE_URL" ]; then
+  echo "❌ DATABASE_URL read from 1Password failed - set it manually or update vault path"
+  export DATABASE_URL="VAULT_READ_FAILED"
+fi
 
 # Inngest
-export INNGEST_API_KEY=$(op read "op://YOUR_VAULT/inngest/api-key/password" 2>/dev/null || echo "")
-export INNGEST_EVENT_KEY=$(op read "op://YOUR_VAULT/inngest/event-key/password" 2>/dev/null || echo "")
+export INNGEST_API_KEY=$(op read "op://YOUR_VAULT/inngest/api-key/password" 2>/dev/null)
+if [ -z "$INNGEST_API_KEY" ]; then
+  echo "❌ INNGEST_API_KEY read from 1Password failed - set it manually or update vault path"
+  export INNGEST_API_KEY="VAULT_READ_FAILED"
+fi
+
+export INNGEST_EVENT_KEY=$(op read "op://YOUR_VAULT/inngest/event-key/password" 2>/dev/null)
+if [ -z "$INNGEST_EVENT_KEY" ]; then
+  echo "❌ INNGEST_EVENT_KEY read from 1Password failed - set it manually or update vault path"
+  export INNGEST_EVENT_KEY="VAULT_READ_FAILED"
+fi
 
 # LLM APIs
-export ANTHROPIC_API_KEY=$(op read "op://YOUR_VAULT/anthropic/api-key/password" 2>/dev/null || echo "")
-export OPENAI_API_KEY=$(op read "op://YOUR_VAULT/openai/api-key/password" 2>/dev/null || echo "")
-export AI_GATEWAY_API_KEY=$(op read "op://YOUR_VAULT/ai-gateway/api-key/password" 2>/dev/null || echo "")
+export ANTHROPIC_API_KEY=$(op read "op://YOUR_VAULT/anthropic/api-key/password" 2>/dev/null)
+if [ -z "$ANTHROPIC_API_KEY" ]; then
+  echo "❌ ANTHROPIC_API_KEY read from 1Password failed - set it manually or update vault path"
+  export ANTHROPIC_API_KEY="VAULT_READ_FAILED"
+fi
+
+export OPENAI_API_KEY=$(op read "op://YOUR_VAULT/openai/api-key/password" 2>/dev/null)
+if [ -z "$OPENAI_API_KEY" ]; then
+  echo "❌ OPENAI_API_KEY read from 1Password failed - set it manually or update vault path"
+  export OPENAI_API_KEY="VAULT_READ_FAILED"
+fi
+
+export AI_GATEWAY_API_KEY=$(op read "op://YOUR_VAULT/ai-gateway/api-key/password" 2>/dev/null)
+if [ -z "$AI_GATEWAY_API_KEY" ]; then
+  echo "❌ AI_GATEWAY_API_KEY read from 1Password failed - set it manually or update vault path"
+  export AI_GATEWAY_API_KEY="VAULT_READ_FAILED"
+fi
 
 # MCP Server APIs
-export CANVA_API_KEY=$(op read "op://YOUR_VAULT/canva/api-key/password" 2>/dev/null || echo "")
-export SHOPIFY_ACCESS_TOKEN=$(op read "op://YOUR_VAULT/shopify/token/password" 2>/dev/null || echo "")
+export CANVA_API_KEY=$(op read "op://YOUR_VAULT/canva/api-key/password" 2>/dev/null)
+if [ -z "$CANVA_API_KEY" ]; then
+  echo "❌ CANVA_API_KEY read from 1Password failed - set it manually or update vault path"
+  export CANVA_API_KEY="VAULT_READ_FAILED"
+fi
+
+export SHOPIFY_ACCESS_TOKEN=$(op read "op://YOUR_VAULT/shopify/token/password" 2>/dev/null)
+if [ -z "$SHOPIFY_ACCESS_TOKEN" ]; then
+  echo "❌ SHOPIFY_ACCESS_TOKEN read from 1Password failed - set it manually or update vault path"
+  export SHOPIFY_ACCESS_TOKEN="VAULT_READ_FAILED"
+fi
 
 # Data Sources
-export PINEONE_API_KEY=$(op read "op://YOUR_VAULT/pineone/api-key/password" 2>/dev/null || echo "")
+export PINECONE_API_KEY=$(op read "op://YOUR_VAULT/pinecone/api-key/password" 2>/dev/null)
+if [ -z "$PINECONE_API_KEY" ]; then
+  echo "❌ PINECONE_API_KEY read from 1Password failed - set it manually or update vault path"
+  export PINECONE_API_KEY="VAULT_READ_FAILED"
+fi
 
 # Development
 export NODE_ENV=development

@@ -9,10 +9,20 @@ const requiredEnvVars = [
   "DATABASE_URL"
 ];
 
-const missing = requiredEnvVars.filter((value) => !process.env[value]);
+// Validate environment variable names to prevent object injection
+const validVarPattern = /^[A-Z0-9_]+$/;
+const missing = requiredEnvVars.filter((value) => {
+  if (!validVarPattern.test(value)) {
+    throw new Error(`Invalid environment variable name: ${value}`);
+  }
+  const envValue = process.env[value];
+  // Treat empty string or sentinel values as missing
+  return !envValue || envValue === "VAULT_READ_FAILED";
+});
 
 if (missing.length > 0) {
-  console.error("❌ Missing environment variables:", missing);
+  console.error("❌ Missing or invalid environment variables:", missing);
+  console.error("ℹ️  Please check your .envrc file or set these variables manually");
   process.exit(1);
 }
 

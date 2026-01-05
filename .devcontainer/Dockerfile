@@ -14,11 +14,10 @@ RUN apt-get update \
   && rm -rf /var/lib/apt/lists/*
 
 RUN npm install -g \
-    concurrently \
-    inngest-cli \
-    tsx \
-    typescript \
-    turbo
+    concurrently@8.2.2 \
+    inngest-cli@0.32.2 \
+    tsx@4.20.6 \
+    typescript@5.7.2
 
 USER node
 WORKDIR /workspace
