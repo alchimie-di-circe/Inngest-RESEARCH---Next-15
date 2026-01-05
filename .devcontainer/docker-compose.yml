@@ -13,7 +13,6 @@ services:
       - /var/run/docker.sock:/var/run/docker.sock:cached
     ports:
       - "3000:3000"
-      - "8288:8288"
     environment:
       NODE_ENV: development
       INNGEST_API_KEY: ${INNGEST_API_KEY:-}
