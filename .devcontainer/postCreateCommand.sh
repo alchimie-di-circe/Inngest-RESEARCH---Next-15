@@ -19,6 +19,17 @@ fi
 
 # 3. Setup direnv
 echo "✓ Initializing direnv..."
+
+# Ensure .envrc exists before attempting to load
+if [ ! -f ".envrc" ]; then
+  echo "❌ ERROR: .envrc file not found"
+  echo "   To fix this issue:"
+  echo "   1. cp envrc.example .envrc"
+  echo "   2. Update the vault paths in .envrc (replace YOUR_VAULT)"
+  echo "   3. Or set environment variables manually"
+  exit 1
+fi
+
 eval "$(direnv hook bash)"
 direnv allow
 
