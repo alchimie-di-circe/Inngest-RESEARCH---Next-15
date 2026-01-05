@@ -2,7 +2,7 @@ import { test, expect } from '@playwright/test'
 
 test('homepage loads successfully', async ({ page }) => {
   await page.goto('/')
-  expect(page).toHaveTitle(/.*/)
+  await expect(page).toHaveTitle(/.*/)
 })
 
 test('navigation works', async ({ page }) => {

@@ -19,6 +19,7 @@ const missing = requiredEnvVars.filter((value) => {
     throw new Error(`Attempted access to non-whitelisted environment variable: ${value}`);
   }
   
+  // eslint-disable-next-line security/detect-object-injection
   const envValue = process.env[value];
   // Treat empty string or sentinel values as missing
   return !envValue || envValue === "VAULT_READ_FAILED";
