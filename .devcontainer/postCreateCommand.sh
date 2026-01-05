@@ -44,7 +44,7 @@ npm run type-check || true
 
 # 9. Start Docker Compose containers in background (optional)
 echo "✓ Starting Docker Compose services..."
-docker-compose -f .devcontainer/docker-compose.yml up -d 2>/dev/null || echo "⚠ Docker Compose not available"
+docker compose -f .devcontainer/docker-compose.yml up -d 2>/dev/null || echo "⚠ Docker Compose not available"
 
 echo "✅ DevContainer setup complete!"
 echo ""
