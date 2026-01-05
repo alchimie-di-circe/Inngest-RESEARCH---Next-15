@@ -39,8 +39,6 @@ docker-compose -f .devcontainer/docker-compose.yml up -d
 ```
 
 Services:
-- **app**: Next.js dev server (port 3000)
-- **inngest-dev**: Inngest dev server (port 8288)
 - **postgres**: PostgreSQL 15 (port 5432)
 - **redis**: Redis 7 (port 6379)
 
