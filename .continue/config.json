@@ -1,0 +1,12 @@
+{
+  "version": "0.0.1",
+  "models": [],
+  "context": {
+    "codebase": [
+      "src",
+      "app",
+      "pages",
+      "scripts"
+    ]
+  }
+}

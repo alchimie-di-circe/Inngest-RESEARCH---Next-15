@@ -1,0 +1,60 @@
+{
+  "name": "Inngest Research Suite",
+  "build": {
+    "dockerfile": "Dockerfile"
+  },
+  "features": {
+    "ghcr.io/devcontainers/features/docker-in-docker:2": {},
+    "ghcr.io/devcontainers-contrib/features/1password-cli:1": {},
+    "ghcr.io/devcontainers-contrib/features/direnv:1": {}
+  },
+  "containerEnv": {
+    "NODE_ENV": "development"
+  },
+  "remoteEnv": {
+    "NODE_ENV": "${localEnv:NODE_ENV:development}",
+    "INNGEST_API_KEY": "${localEnv:INNGEST_API_KEY}",
+    "DATABASE_URL": "${localEnv:DATABASE_URL}",
+    "ANTHROPIC_API_KEY": "${localEnv:ANTHROPIC_API_KEY}",
+    "OPENAI_API_KEY": "${localEnv:OPENAI_API_KEY}"
+  },
+  "postCreateCommand": "bash .devcontainer/postCreateCommand.sh",
+  "forwardPorts": [3000, 8288, 5432, 6379],
+  "portsAttributes": {
+    "3000": {
+      "label": "Next.js",
+      "onAutoForward": "notify"
+    },
+    "8288": {
+      "label": "Inngest Dev",
+      "onAutoForward": "notify"
+    },
+    "5432": {
+      "label": "PostgreSQL",
+      "onAutoForward": "ignore"
+    },
+    "6379": {
+      "label": "Redis",
+      "onAutoForward": "ignore"
+    }
+  },
+  "mounts": [
+    "source=${localEnv:HOME}/.ssh,target=/home/node/.ssh,type=bind,consistency=cached",
+    "source=${localEnv:HOME}/.1password,target=/home/node/.1password,type=bind,consistency=cached",
+    "source=/var/run/docker.sock,target=/var/run/docker.sock,type=bind"
+  ],
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "ms-vscode-remote.remote-containers",
+        "ms-vscode-remote.remote-ssh",
+        "dbaeumer.vscode-eslint",
+        "esbenp.prettier-vscode",
+        "ms-vscode.vscode-typescript-next",
+        "Continue.continue",
+        "ms-python.python",
+        "eamodio.gitlens"
+      ]
+    }
+  }
+}
