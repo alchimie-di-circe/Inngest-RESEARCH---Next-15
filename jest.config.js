@@ -1,3 +1,4 @@
+/* eslint-disable security/detect-non-literal-fs-filename */
 const nextJest = require('next/jest')
 
 // Type-safe Jest setup files configuration
@@ -43,6 +44,7 @@ const customJestConfig = {
     '!src/**/__tests__/**',
   ],
 }
+/* eslint-enable security/detect-non-literal-fs-filename */
 
 // createJestConfig is exported this way to ensure that next/jest can load the Next.js config which is async
 module.exports = createJestConfig(customJestConfig)

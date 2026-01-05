@@ -2,11 +2,11 @@ import { test, expect } from '@playwright/test'
 
 test('homepage loads successfully', async ({ page }) => {
   await page.goto('/')
-  await expect(page).toHaveTitle(/.*/)
+  expect(page).toHaveTitle(/.*/)
 })
 
 test('navigation works', async ({ page }) => {
   await page.goto('/')
   // Add your navigation tests here
-  await expect(page).toBeTruthy()
+  expect(page).toBeTruthy()
 })
