@@ -1,5 +1,7 @@
 #!/usr/bin/env node
-const requiredEnvVars = [
+
+// Whitelist of allowed environment variables (prevents object injection via dynamic keys)
+const allowedEnvVars = new Set([
   "NODE_ENV",
   "INNGEST_API_KEY",
   "INNGEST_EVENT_KEY",
@@ -7,14 +9,16 @@ const requiredEnvVars = [
   "ANTHROPIC_API_KEY",
   "OPENAI_API_KEY",
   "DATABASE_URL"
-];
+]);
 
-// Validate environment variable names to prevent object injection
-const validVarPattern = /^[A-Z0-9_]+$/;
+const requiredEnvVars = Array.from(allowedEnvVars);
+
 const missing = requiredEnvVars.filter((value) => {
-  if (!validVarPattern.test(value)) {
-    throw new Error(`Invalid environment variable name: ${value}`);
+  // Only access whitelisted environment variables (prevents object injection)
+  if (!allowedEnvVars.has(value)) {
+    throw new Error(`Attempted access to non-whitelisted environment variable: ${value}`);
   }
+  
   const envValue = process.env[value];
   // Treat empty string or sentinel values as missing
   return !envValue || envValue === "VAULT_READ_FAILED";

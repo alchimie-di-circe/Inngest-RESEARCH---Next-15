@@ -1,5 +1,15 @@
 const nextJest = require('next/jest')
 
+// Type-safe Jest setup files configuration
+/** @type {string[]} */
+const setupFiles = ['<rootDir>/jest.setup.js']
+
+// Type-safe module name mapper
+/** @type {Record<string, string>} */
+const moduleMapper = {
+  '^@/(.*)$': '<rootDir>/src/$1',
+}
+
 const createJestConfig = nextJest({
   // Provide the path to your Next.js app to load next.config.js and .env files in your test environment
   dir: './',
@@ -7,11 +17,9 @@ const createJestConfig = nextJest({
 
 // Add any custom config to be passed to Jest
 const customJestConfig = {
-  setupFilesAfterEnv: ['<rootDir>/jest.setup.js'],
+  setupFilesAfterEnv: setupFiles,
   testEnvironment: 'jest-environment-jsdom',
-  moduleNameMapper: {
-    '^@/(.*)$': '<rootDir>/src/$1',
-  },
+  moduleNameMapper: moduleMapper,
 }
 
 // createJestConfig is exported this way to ensure that next/jest can load the Next.js config which is async
