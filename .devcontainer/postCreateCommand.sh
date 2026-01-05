@@ -9,10 +9,9 @@ git --version && git status
 
 # 2. Initialize 1Password
 echo "✓ Setting up 1Password CLI..."
-if ! op --version &> /dev/null; then
-  echo "⚠ 1Password CLI not found, installing..."
-  sudo apt-get update && sudo apt-get install -y 1password-cli
-fi
+# The 1Password CLI is installed via devcontainer features.
+# This section is for verification or can be removed.
+op --version
 
 # 3. Setup direnv
 echo "✓ Initializing direnv..."
