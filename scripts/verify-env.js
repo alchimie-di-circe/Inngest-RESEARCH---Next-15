@@ -2,6 +2,7 @@
 const requiredEnvVars = [
   "NODE_ENV",
   "INNGEST_API_KEY",
+  "INNGEST_EVENT_KEY",
   "NEXT_PUBLIC_API_URL",
   "ANTHROPIC_API_KEY",
   "OPENAI_API_KEY",
