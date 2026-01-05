@@ -15,7 +15,7 @@ services:
       NODE_ENV: development
       INNGEST_API_KEY: ${INNGEST_API_KEY:-}
       INNGEST_EVENT_KEY: ${INNGEST_EVENT_KEY:-}
-      DATABASE_URL: ${DATABASE_URL:-}
+      DATABASE_URL: ${DATABASE_URL:-postgresql://inngest:inngest@postgres:5432/inngest}
       NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://localhost:3000}
     depends_on:
       postgres:
