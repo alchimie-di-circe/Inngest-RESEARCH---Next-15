@@ -10,7 +10,6 @@ RUN apt-get update \
     jq \
     postgresql-client \
     python3-minimal \
-    docker.io \
   && git lfs install \
   && rm -rf /var/lib/apt/lists/*
 
