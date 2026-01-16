@@ -1,0 +1,57 @@
+# AgentKit by Inngest
+
+## Docs
+
+- [Human in the Loop](https://agentkit.inngest.com/advanced-patterns/human-in-the-loop.md): Enable your Agents to wait for human input.
+- [UI Streaming with useAgent](https://agentkit.inngest.com/advanced-patterns/legacy-ui-streaming.md): Stream AgentKit events to your UI with the useAgent hook.
+- [MCP as tools](https://agentkit.inngest.com/advanced-patterns/mcp.md): Provide your Agents with MCP Servers as tools
+- [Multi-steps tools](https://agentkit.inngest.com/advanced-patterns/multi-steps-tools.md): Use multi-steps tools to create more complex Agents.
+- [Configuring Multi-tenancy](https://agentkit.inngest.com/advanced-patterns/multitenancy.md): Configure capacity based on users or organizations.
+- [Configuring Retries](https://agentkit.inngest.com/advanced-patterns/retries.md): Configure retries for your AgentKit network Agents and Tool calls.
+- [Deterministic state routing](https://agentkit.inngest.com/advanced-patterns/routing.md): State based routing in Agent Networks
+- [Changelog](https://agentkit.inngest.com/changelog/overview.md): Recent releases, new features, and fixes.
+- [Agents](https://agentkit.inngest.com/concepts/agents.md): Create agents to accomplish specific tasks with tools inside a network.
+- [Deployment](https://agentkit.inngest.com/concepts/deployment.md): Deploy your AgentKit networks to production.
+- [History](https://agentkit.inngest.com/concepts/history.md): Learn how to persist conversations for your agents and networks
+- [Memory](https://agentkit.inngest.com/concepts/memory.md): Learn how to give your agents long-term, reflective memory using Mem0.
+- [Models](https://agentkit.inngest.com/concepts/models.md): Leverage different provider's models across Agents.
+- [Networks](https://agentkit.inngest.com/concepts/networks.md): Combine one or more agents into a Network.
+- [Routers](https://agentkit.inngest.com/concepts/routers.md): Customize how calls are routed between Agents in a Network.
+- [State](https://agentkit.inngest.com/concepts/state.md): Shared memory, history, and key-value state for Agents and Networks.
+- [Tools](https://agentkit.inngest.com/concepts/tools.md): Extending the functionality of Agents for structured output or performing tasks.
+- [Examples](https://agentkit.inngest.com/examples/overview.md)
+- [Installation](https://agentkit.inngest.com/getting-started/installation.md): How to install AgentKit
+- [Local development](https://agentkit.inngest.com/getting-started/local-development.md): Run AgentKit locally with live traces and logs.
+- [Quick start](https://agentkit.inngest.com/getting-started/quick-start.md): Learn the basics of AgentKit in a few minutes.
+- [Code Assistant v2: Complex code analysis](https://agentkit.inngest.com/guided-tour/agentic-workflows.md): Use AgentKit Tools and Custom Router to add agentic capabilities.
+- [Code Assistant v3: Autonomous Bug Solver](https://agentkit.inngest.com/guided-tour/ai-agents.md): Build a custom Agent Router to autonomously solve bugs.
+- [Code Assistant v1: Explaining a given code file](https://agentkit.inngest.com/guided-tour/ai-workflows.md): Leveraging AgentKit's Agent concept to power a RAG workflow.
+- [The three levels of AI apps](https://agentkit.inngest.com/guided-tour/overview.md): A comprehensive guide to building AI Agents with AgentKit
+- [Using AgentKit with Browserbase](https://agentkit.inngest.com/integrations/browserbase.md): Develop AI Agents that can browse the web
+- [Using AgentKit with Daytona](https://agentkit.inngest.com/integrations/daytona.md): Build Coding Agents with Daytona's secure and elastic infrastructure for executing AI-generated code
+- [Using AgentKit with E2B](https://agentkit.inngest.com/integrations/e2b.md): Develop Coding Agents using E2B Sandboxes as tools
+- [Smithery - MCP Registry](https://agentkit.inngest.com/integrations/smithery.md): Provide your Agents with hundred of prebuilt tools to interact with
+- [AgentKit](https://agentkit.inngest.com/overview.md): A TypeScript library to create and orchestrate AI Agents.
+- [createAgent](https://agentkit.inngest.com/reference/create-agent.md): Define an agent
+- [createNetwork](https://agentkit.inngest.com/reference/create-network.md): Define a network
+- [createTool](https://agentkit.inngest.com/reference/create-tool.md): Provide tools to an agent
+- [Introduction](https://agentkit.inngest.com/reference/introduction.md): SDK Reference
+- [Anthropic Model](https://agentkit.inngest.com/reference/model-anthropic.md): Configure Anthropic as your model provider
+- [Gemini Model](https://agentkit.inngest.com/reference/model-gemini.md): Configure Google Gemini as your model provider
+- [Grok Model](https://agentkit.inngest.com/reference/model-grok.md): Configure Grok as your model provider
+- [OpenAI Model](https://agentkit.inngest.com/reference/model-openai.md): Configure OpenAI as your model provider
+- [Network Router](https://agentkit.inngest.com/reference/network-router.md): Controlling the flow of execution between agents in a Network.
+- [createState](https://agentkit.inngest.com/reference/state.md): Leverage a Network's State across Routers and Agents.
+- [useAgent](https://agentkit.inngest.com/reference/use-agent.md): React hook for building real-time, multi-threaded AI applications
+- [Events](https://agentkit.inngest.com/streaming/events.md)
+- [Overview](https://agentkit.inngest.com/streaming/overview.md): Realtime event streaming with AgentKit + useAgent
+- [Provider](https://agentkit.inngest.com/streaming/provider.md): A deep dive into the provider for streaming agents
+- [Transport](https://agentkit.inngest.com/streaming/transport.md): A deep dive into the transport layer for streaming agents
+- [Usage Guide](https://agentkit.inngest.com/streaming/usage-guide.md): A deep dive into streaming agents
+
+
+## Optional
+
+- [Community](https://www.inngest.com/discord)
+- [GitHub](https://github.com/inngest/agent-kit)
+- [Inngest documentation](https://www.inngest.com/docs)
