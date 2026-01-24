@@ -184,7 +184,7 @@ Step 5: Commit Fix
 
 ---
 
-### Scenario 3: Agent Uses MCP Tools in Codebase
+### Scenario 3: Agent MCP server implementation (in Codebase)
 
 **Request to Agent**:
 ```
