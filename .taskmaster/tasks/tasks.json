@@ -1,0 +1,480 @@
+{
+  "master": {
+    "tasks": [
+      {
+        "id": 1,
+        "title": "Extend Database Schema for Full Research Publishing Suite",
+        "description": "Update Prisma schema with complete data models for research_jobs, brand_config, content_items, and publishing_queue tables as specified in the PRD to support all 4 phases.",
+        "details": "Update `prisma/schema.prisma` with the following models:\n\n```prisma\nmodel ResearchJob {\n  id           String        @id @default(cuid())\n  topic        String\n  tabType      String        // 'deep', 'context', 'content', 'publish'\n  parameters   Json?\n  status       String        @default(\"pending\") // pending, running, completed, failed\n  reportData   Json?\n  createdAt    DateTime      @default(now())\n  completedAt  DateTime?\n  createdBy    String?\n  contentItems ContentItem[]\n  @@index([status])\n  @@index([createdAt])\n}\n\nmodel BrandConfig {\n  id             String   @id @default(cuid())\n  name           String\n  tovGuidelines  String?  @db.Text // Tone of voice\n  brandKnowledge Json?\n  platformHistory Json?\n  brandColors    Json?\n  logoUrl        String?\n  createdAt      DateTime @default(now())\n  updatedAt      DateTime @updatedAt\n  createdBy      String?\n}\n\nmodel ContentItem {\n  id            String           @id @default(cuid())\n  researchJobId String\n  researchJob   ResearchJob      @relation(fields: [researchJobId], references: [id], onDelete: Cascade)\n  contentType   String           // 'blog_post', 'social_post', 'carousel'\n  copy          String?          @db.Text\n  designAssets  Json?\n  status        String           @default(\"draft\") // draft, approved, rejected, published\n  platform      String           // 'blog', 'twitter', 'linkedin', 'instagram', 'multi'\n  publishDate   DateTime?\n  createdAt     DateTime         @default(now())\n  updatedAt     DateTime         @updatedAt\n  publishingQueue PublishingQueue[]\n  @@index([status])\n}\n\nmodel PublishingQueue {\n  id            String      @id @default(cuid())\n  contentItemId String\n  contentItem   ContentItem @relation(fields: [contentItemId], references: [id], onDelete: Cascade)\n  platform      String\n  scheduledAt   DateTime?\n  publishedAt   DateTime?\n  status        String      @default(\"pending\") // pending, published, failed\n  errorLog      String?     @db.Text\n  retryCount    Int         @default(0)\n  createdAt     DateTime    @default(now())\n  @@index([status])\n  @@index([platform])\n}\n\nmodel AgentAuditLog {\n  id         String   @id @default(cuid())\n  agentName  String\n  action     String\n  jobId      String?\n  status     String\n  metadata   Json?\n  createdAt  DateTime @default(now())\n  @@index([agentName])\n  @@index([createdAt])\n}\n```\n\nThen run `npx prisma db push` to sync with Neon. Create a database utility file at `src/lib/db.ts` to export Prisma client singleton.",
+        "testStrategy": "Run `npx prisma validate` to check schema. Run `npx prisma db push --dry-run` to verify migration. Create integration tests in `tests/integration/db/schema.test.ts` that verify all tables can be created and basic CRUD operations work.",
+        "priority": "high",
+        "dependencies": [],
+        "status": "pending",
+        "subtasks": [
+          {
+            "id": 1,
+            "title": "Add Core Models with Relations to Prisma Schema",
+            "description": "Add the 5 new models (ResearchJob, BrandConfig, ContentItem, PublishingQueue, AgentAuditLog) to the Prisma schema with proper field definitions, relations, and cascade delete behaviors. Integrate with or deprecate existing ResearchContext and AgentRun models.",
+            "dependencies": [],
+            "details": "Update `prisma/schema.prisma` to add:\n\n1. **ResearchJob** model with fields: id, topic, tabType ('deep'|'context'|'content'|'publish'), parameters (Json), status ('pending'|'running'|'completed'|'failed'), reportData (Json), createdAt, completedAt, createdBy. Add one-to-many relation to ContentItem.\n\n2. **BrandConfig** model with fields: id, name, tovGuidelines (Text for tone of voice), brandKnowledge (Json), platformHistory (Json), brandColors (Json), logoUrl, createdAt, updatedAt, createdBy. Standalone model.\n\n3. **ContentItem** model with fields: id, researchJobId (FK), contentType, copy (Text), designAssets (Json), status ('draft'|'approved'|'rejected'|'published'), platform, publishDate, createdAt, updatedAt. Relation to ResearchJob with onDelete Cascade. One-to-many relation to PublishingQueue.\n\n4. **PublishingQueue** model with fields: id, contentItemId (FK), platform, scheduledAt, publishedAt, status ('pending'|'published'|'failed'), errorLog (Text), retryCount, createdAt. Relation to ContentItem with onDelete Cascade.\n\n5. **AgentAuditLog** model with fields: id, agentName, action, jobId, status, metadata (Json), createdAt. Standalone model for audit trail.\n\nConsider keeping existing models as-is for backward compatibility or add deprecation comments if they're superseded by new models.",
+            "status": "pending",
+            "testStrategy": "Run `npx prisma validate` to verify schema syntax is correct. Check that all relations compile without circular dependency errors."
+          },
+          {
+            "id": 2,
+            "title": "Add Database Indexes and Constraints",
+            "description": "Add performance-critical indexes to all models for common query patterns (status filtering, date sorting, platform filtering) as specified in the PRD schema.",
+            "dependencies": [
+              1
+            ],
+            "details": "Add the following `@@index` directives to optimize query performance:\n\n**ResearchJob:**\n- `@@index([status])` - For filtering by job status (pending, running, completed, failed)\n- `@@index([createdAt])` - For sorting/filtering by creation date\n\n**ContentItem:**\n- `@@index([status])` - For filtering draft/approved/published content\n\n**PublishingQueue:**\n- `@@index([status])` - For finding pending/failed publishing jobs\n- `@@index([platform])` - For platform-specific queue queries\n\n**AgentAuditLog:**\n- `@@index([agentName])` - For filtering logs by agent\n- `@@index([createdAt])` - For time-based log queries\n\nThese indexes align with the SQL schema in CLAUDE.md and support the query patterns needed for the publishing queue manager (Task 10) and real-time streaming (Task 13).",
+            "status": "pending",
+            "testStrategy": "Run `npx prisma db push --dry-run` to verify migration plan includes all expected CREATE INDEX statements. Review generated SQL to confirm index names and columns are correct."
+          },
+          {
+            "id": 3,
+            "title": "Create Prisma Client Singleton and Type Exports",
+            "description": "Create the database utility file at `src/lib/db.ts` with a Prisma client singleton pattern for serverless environments and export type helpers for all new models.",
+            "dependencies": [
+              1,
+              2
+            ],
+            "details": "Create `src/lib/db.ts` with the following structure:\n\n```typescript\nimport { PrismaClient } from '@prisma/client';\n\nconst globalForPrisma = globalThis as unknown as {\n  prisma: PrismaClient | undefined;\n};\n\nexport const prisma = globalForPrisma.prisma ?? new PrismaClient({\n  log: process.env.NODE_ENV === 'development' ? ['query', 'error', 'warn'] : ['error'],\n});\n\nif (process.env.NODE_ENV !== 'production') {\n  globalForPrisma.prisma = prisma;\n}\n\n// Type exports for all models\nexport type { ResearchJob, BrandConfig, ContentItem, PublishingQueue, AgentAuditLog } from '@prisma/client';\n\n// Convenience type aliases\nexport type ResearchJobStatus = 'pending' | 'running' | 'completed' | 'failed';\nexport type ContentStatus = 'draft' | 'approved' | 'rejected' | 'published';\nexport type PublishingStatus = 'pending' | 'published' | 'failed';\nexport type TabType = 'deep' | 'context' | 'content' | 'publish';\nexport type Platform = 'blog' | 'twitter' | 'linkedin' | 'instagram' | 'multi';\n```\n\nAfter creating the file, run `npx prisma generate` to ensure types are available, then `npx prisma db push` to sync schema with Neon database.",
+            "status": "pending",
+            "testStrategy": "Create `tests/integration/db/schema.test.ts` with tests that: 1) Import prisma from db.ts successfully, 2) Verify all 5 models are accessible via prisma client, 3) Test basic CRUD operations (create, read, update, delete) for each model, 4) Verify cascade deletes work for ResearchJob→ContentItem→PublishingQueue chain."
+          }
+        ]
+      },
+      {
+        "id": 2,
+        "title": "Create Dashboard Layout with 4-Tab Navigation",
+        "description": "Implement the dashboard shell with sidebar navigation and 4 phase tabs (Deep Research, Context Research, Content Generation, Publishing) using Next.js 15 app router.",
+        "details": "Create the dashboard structure:\n\n1. Create `src/app/(dashboard)/layout.tsx`:\n```tsx\nimport { Sidebar } from '@/components/sidebar';\n\nexport default function DashboardLayout({ children }: { children: React.ReactNode }) {\n  return (\n    <div className=\"flex h-screen bg-slate-950\">\n      <Sidebar />\n      <main className=\"flex-1 overflow-auto p-6\">{children}</main>\n    </div>\n  );\n}\n```\n\n2. Create `src/components/sidebar.tsx` with navigation links for 4 tabs:\n- Deep Research (`/deep`)\n- Context Research (`/context`)\n- Content Generation (`/content`)\n- Publishing (`/publishing`)\n\n3. Create page stubs:\n- `src/app/(dashboard)/deep/page.tsx`\n- `src/app/(dashboard)/context/page.tsx`\n- `src/app/(dashboard)/content/page.tsx`\n- `src/app/(dashboard)/publishing/page.tsx`\n\n4. Update `src/app/page.tsx` to redirect to `/deep` or show project selection\n\nUse Tailwind classes consistent with existing dark theme (slate-950, slate-800, etc.)",
+        "testStrategy": "Create component tests for Sidebar using React Testing Library. Verify navigation links render correctly. E2E test with Playwright to verify tab switching works and maintains URL state.",
+        "priority": "high",
+        "dependencies": [],
+        "status": "pending",
+        "subtasks": [
+          {
+            "id": 1,
+            "title": "Create Dashboard Route Group with Layout",
+            "description": "Create the (dashboard) route group directory structure and implement the layout.tsx file with flex container for sidebar and main content area.",
+            "dependencies": [],
+            "details": "Create `src/app/(dashboard)/layout.tsx` with the following structure:\n\n1. Create directory: `src/app/(dashboard)/`\n2. Implement layout.tsx as a server component:\n```tsx\nimport { Sidebar } from '@/components/sidebar';\n\nexport default function DashboardLayout({ children }: { children: React.ReactNode }) {\n  return (\n    <div className=\"flex h-screen bg-slate-950\">\n      <Sidebar />\n      <main className=\"flex-1 overflow-auto p-6\">{children}</main>\n    </div>\n  );\n}\n```\n\nKey implementation details:\n- Use `h-screen` for full viewport height\n- Use `flex` layout with sidebar on left, main content on right\n- Apply `bg-slate-950` to match existing dark theme pattern from current page.tsx\n- Main area uses `flex-1` to take remaining space, `overflow-auto` for scrolling, `p-6` for consistent padding\n- Import Sidebar from @/components/sidebar (to be created in subtask 2)",
+            "status": "pending",
+            "testStrategy": "Verify the route group is recognized by Next.js app router. Check that layout wraps child pages correctly. Confirm dark theme background renders properly."
+          },
+          {
+            "id": 2,
+            "title": "Create Sidebar Navigation Component",
+            "description": "Implement the Sidebar component with navigation links for the 4 phase tabs using existing dark theme patterns (slate-950, slate-800, indigo accents).",
+            "dependencies": [
+              1
+            ],
+            "details": "Create `src/components/sidebar.tsx` as a client component:\n\n```tsx\n'use client';\nimport Link from 'next/link';\nimport { usePathname } from 'next/navigation';\n\nconst navItems = [\n  { href: '/deep', label: 'Deep Research', icon: '🔬' },\n  { href: '/context', label: 'Context Research', icon: '📋' },\n  { href: '/content', label: 'Content Generation', icon: '✍️' },\n  { href: '/publishing', label: 'Publishing', icon: '📤' },\n];\n\nexport function Sidebar() {\n  const pathname = usePathname();\n  \n  return (\n    <aside className=\"w-64 bg-slate-900 border-r border-slate-700 p-4\">\n      <div className=\"mb-8\">\n        <h1 className=\"text-xl font-bold text-white\">Research Suite</h1>\n      </div>\n      <nav className=\"space-y-2\">\n        {navItems.map((item) => {\n          const isActive = pathname === item.href;\n          return (\n            <Link\n              key={item.href}\n              href={item.href}\n              className={`flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${\n                isActive\n                  ? 'bg-indigo-600 text-white'\n                  : 'text-slate-400 hover:bg-slate-800 hover:text-white'\n              }`}\n            >\n              <span>{item.icon}</span>\n              <span>{item.label}</span>\n            </Link>\n          );\n        })}\n      </nav>\n    </aside>\n  );\n}\n```\n\nTheme patterns from codebase:\n- `bg-slate-900` for sidebar background (nested bg level)\n- `border-r border-slate-700` for right border\n- `text-white` for headings, `text-slate-400` for inactive links\n- `bg-indigo-600 text-white` for active state (matches button pattern)\n- `hover:bg-slate-800 hover:text-white` for hover states\n- `transition-colors` for smooth transitions",
+            "status": "pending",
+            "testStrategy": "Create React Testing Library tests to verify all 4 navigation links render with correct hrefs. Test active state highlighting by mocking usePathname. Verify hover and transition classes are applied."
+          },
+          {
+            "id": 3,
+            "title": "Create Page Stubs and Root Redirect",
+            "description": "Create the 4 page stub files for /deep, /context, /content, /publishing routes and update root page.tsx to redirect to /deep as the default tab.",
+            "dependencies": [
+              1,
+              2
+            ],
+            "details": "1. Create 4 page stubs in the (dashboard) route group:\n\n`src/app/(dashboard)/deep/page.tsx`:\n```tsx\nexport default function DeepResearchPage() {\n  return (\n    <div className=\"space-y-6\">\n      <h1 className=\"text-2xl font-bold text-white\">Deep Research</h1>\n      <p className=\"text-slate-400\">Multi-agent staging → reasoning → reporting pipeline</p>\n      <div className=\"bg-slate-800 border border-slate-700 rounded-lg p-6\">\n        <p className=\"text-slate-300\">Deep Research interface coming soon...</p>\n      </div>\n    </div>\n  );\n}\n```\n\n`src/app/(dashboard)/context/page.tsx`:\n```tsx\nexport default function ContextResearchPage() {\n  return (\n    <div className=\"space-y-6\">\n      <h1 className=\"text-2xl font-bold text-white\">Context Research</h1>\n      <p className=\"text-slate-400\">Multi-source gathering + brand contextualization</p>\n      <div className=\"bg-slate-800 border border-slate-700 rounded-lg p-6\">\n        <p className=\"text-slate-300\">Context Research interface coming soon...</p>\n      </div>\n    </div>\n  );\n}\n```\n\n`src/app/(dashboard)/content/page.tsx`:\n```tsx\nexport default function ContentGenerationPage() {\n  return (\n    <div className=\"space-y-6\">\n      <h1 className=\"text-2xl font-bold text-white\">Content Generation</h1>\n      <p className=\"text-slate-400\">Unified text + design creation</p>\n      <div className=\"bg-slate-800 border border-slate-700 rounded-lg p-6\">\n        <p className=\"text-slate-300\">Content Generation interface coming soon...</p>\n      </div>\n    </div>\n  );\n}\n```\n\n`src/app/(dashboard)/publishing/page.tsx`:\n```tsx\nexport default function PublishingPage() {\n  return (\n    <div className=\"space-y-6\">\n      <h1 className=\"text-2xl font-bold text-white\">Publishing</h1>\n      <p className=\"text-slate-400\">Automated distribution to platforms</p>\n      <div className=\"bg-slate-800 border border-slate-700 rounded-lg p-6\">\n        <p className=\"text-slate-300\">Publishing interface coming soon...</p>\n      </div>\n    </div>\n  );\n}\n```\n\n2. Update `src/app/page.tsx` to redirect to /deep:\n```tsx\nimport { redirect } from 'next/navigation';\n\nexport default function Home() {\n  redirect('/deep');\n}\n```\n\nAlternatively, keep existing content but add a link to dashboard, or use `next.config.ts` redirects.",
+            "status": "pending",
+            "testStrategy": "E2E test with Playwright to verify: 1) Root URL redirects to /deep, 2) All 4 routes are accessible and render correct page titles, 3) Tab switching maintains URL state and highlights correct sidebar item."
+          }
+        ]
+      },
+      {
+        "id": 3,
+        "title": "Implement Brand Configuration Management",
+        "description": "Create API routes and UI for managing brand configurations including tone of voice guidelines, brand colors, and platform history storage.",
+        "details": "1. Create API routes at `src/app/api/brand/route.ts`:\n```typescript\n// GET - List all brand configs\n// POST - Create new brand config\nexport async function GET(request: Request) {\n  const brands = await prisma.brandConfig.findMany({\n    orderBy: { createdAt: 'desc' }\n  });\n  return Response.json(brands);\n}\n\nexport async function POST(request: Request) {\n  const body = await request.json();\n  const brand = await prisma.brandConfig.create({ data: body });\n  return Response.json(brand);\n}\n```\n\n2. Create `src/app/api/brand/[id]/route.ts` for GET/PUT/DELETE by ID\n\n3. Create types in `src/types/brand.ts`:\n```typescript\nexport interface BrandConfig {\n  id: string;\n  name: string;\n  tovGuidelines?: string;\n  brandKnowledge?: Record<string, unknown>;\n  platformHistory?: {\n    twitter?: string[];\n    linkedin?: string[];\n    shopify?: string[];\n  };\n  brandColors?: { primary: string; secondary: string; accent: string };\n  logoUrl?: string;\n}\n```\n\n4. Create UI components:\n- `src/components/brand/brand-form.tsx` - Form for creating/editing brands\n- `src/components/brand/brand-list.tsx` - List view of all brands\n- `src/components/brand/brand-selector.tsx` - Dropdown for selecting active brand",
+        "testStrategy": "Unit tests for API routes using mocked Prisma client. Integration tests verifying CRUD operations against test database. Component tests for form validation and submission.",
+        "priority": "high",
+        "dependencies": [
+          1
+        ],
+        "status": "pending",
+        "subtasks": [
+          {
+            "id": 1,
+            "title": "Create Brand API Routes with CRUD Operations",
+            "description": "Implement the API routes at /api/brand and /api/brand/[id] for full CRUD operations on brand configurations, following the existing server action patterns in the codebase.",
+            "dependencies": [],
+            "details": "Create two API route files following existing patterns:\n\n1. `src/app/api/brand/route.ts`:\n   - GET: List all brand configs using `prisma.brandConfig.findMany({ orderBy: { createdAt: 'desc' } })`\n   - POST: Create new brand config with validation using `prisma.brandConfig.create({ data: body })`\n\n2. `src/app/api/brand/[id]/route.ts`:\n   - GET: Fetch single brand by ID using `prisma.brandConfig.findUnique({ where: { id } })`\n   - PUT: Update brand config using `prisma.brandConfig.update({ where: { id }, data: body })`\n   - DELETE: Remove brand config using `prisma.brandConfig.delete({ where: { id } })`\n\nFollow the existing error handling patterns seen in the codebase. Return appropriate HTTP status codes (200, 201, 404, 500). Use Response.json() for all responses. Ensure routes handle edge cases like missing brand IDs and validation errors.",
+            "status": "pending",
+            "testStrategy": "Unit tests with mocked Prisma client for each CRUD operation. Test error handling for invalid IDs, missing required fields, and database errors. Integration tests against test database verifying data persistence."
+          },
+          {
+            "id": 2,
+            "title": "Define BrandConfig TypeScript Interface and Types",
+            "description": "Create comprehensive TypeScript type definitions for BrandConfig interface in src/types/brand.ts, including all brand-related types for API contracts and component props.",
+            "dependencies": [],
+            "details": "Create `src/types/brand.ts` with the following type definitions:\n\n```typescript\nexport interface BrandColors {\n  primary: string;\n  secondary: string;\n  accent: string;\n}\n\nexport interface PlatformHistory {\n  twitter?: string[];\n  linkedin?: string[];\n  shopify?: string[];\n}\n\nexport interface BrandConfig {\n  id: string;\n  name: string;\n  tovGuidelines?: string;\n  brandKnowledge?: Record<string, unknown>;\n  platformHistory?: PlatformHistory;\n  brandColors?: BrandColors;\n  logoUrl?: string;\n  createdAt: Date;\n  updatedAt: Date;\n}\n\nexport interface CreateBrandConfigInput {\n  name: string;\n  tovGuidelines?: string;\n  brandKnowledge?: Record<string, unknown>;\n  platformHistory?: PlatformHistory;\n  brandColors?: BrandColors;\n  logoUrl?: string;\n}\n\nexport interface UpdateBrandConfigInput extends Partial<CreateBrandConfigInput> {}\n```\n\nFollow the existing interface-based pattern seen in `src/inngest/types.ts`. Export all types for use across API routes, components, and Inngest functions.",
+            "status": "pending",
+            "testStrategy": "TypeScript compilation check to ensure types are correctly defined. Verify type exports are accessible from other modules. No runtime tests needed for type definitions."
+          },
+          {
+            "id": 3,
+            "title": "Build BrandForm Component with Full Field Support",
+            "description": "Create brand-form.tsx component in src/components/brand/ with form fields for name, TOV guidelines, brand colors (primary/secondary/accent), logo URL, and platform history.",
+            "dependencies": [
+              2
+            ],
+            "details": "Create `src/components/brand/brand-form.tsx` following existing component patterns (QueryForm.tsx style):\n\n1. Use 'use client' directive for client-side interactivity\n2. Props interface: `{ initialData?: BrandConfig; onSubmit: (data: CreateBrandConfigInput) => Promise<void>; isLoading?: boolean }`\n3. Form fields using controlled components with useState:\n   - Name input (required, text)\n   - TOV Guidelines textarea (optional, multiline)\n   - Logo URL input (optional, URL validation)\n   - Brand Colors section with 3 color pickers (primary, secondary, accent)\n   - Platform History JSON editor or structured inputs for twitter/linkedin/shopify arrays\n4. Apply existing dark theme styling:\n   - Container: `bg-slate-800 rounded-lg p-6 border border-slate-700`\n   - Inputs: `w-full p-4 rounded-lg bg-slate-800 text-white border border-slate-700 focus:border-indigo-500`\n   - Submit button: `px-6 py-3 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 disabled:opacity-50`\n5. Include form validation for required fields and URL format\n6. Handle both create and edit modes based on initialData prop",
+            "status": "pending",
+            "testStrategy": "Component tests for form rendering, validation, and submission. Test controlled input updates. Test form submission calls onSubmit with correct data. Test disabled state during loading."
+          },
+          {
+            "id": 4,
+            "title": "Create BrandList and BrandSelector Dropdown Components",
+            "description": "Build brand-list.tsx for displaying all brands in a list/card view and brand-selector.tsx dropdown component for selecting the active brand in the research workflow.",
+            "dependencies": [
+              2
+            ],
+            "details": "Create two components in `src/components/brand/`:\n\n**1. brand-list.tsx:**\n- Props: `{ brands: BrandConfig[]; onEdit?: (id: string) => void; onDelete?: (id: string) => void; selectedId?: string }`\n- Display brands in card layout following AgentCard.tsx pattern\n- Each card shows: name, TOV preview (truncated), color swatches, logo thumbnail\n- Include edit and delete action buttons with confirmation for delete\n- Apply dark theme: `bg-slate-800 rounded-lg border border-slate-700`\n- Show empty state when no brands exist\n\n**2. brand-selector.tsx:**\n- Props: `{ brands: BrandConfig[]; selectedBrandId?: string; onSelect: (brandId: string) => void; disabled?: boolean }`\n- Dropdown/select component for choosing active brand\n- Show brand name and color preview in options\n- Style: `w-full p-3 rounded-lg bg-slate-800 text-white border border-slate-700`\n- Include 'None' option for no brand selection\n- Used in Context Research tab for applying brand context\n\nBoth components should be keyboard accessible and follow existing styling conventions.",
+            "status": "pending",
+            "testStrategy": "Component tests for rendering brand data correctly. Test selection callbacks fire with correct IDs. Test edit/delete actions trigger appropriate callbacks. Test empty state rendering. Test keyboard navigation for accessibility."
+          }
+        ]
+      },
+      {
+        "id": 4,
+        "title": "Refactor Deep Research Agent for PRD Compliance",
+        "description": "Update the existing deep research agent (gather-context, orchestrator) to align with PRD Feature 1.1-1.3, adding proper event schemas and database persistence.",
+        "details": "1. Update `src/inngest/events.ts` to add new event types:\n```typescript\nexport type InngestEvents = {\n  'deep.research.requested': {\n    data: {\n      topic: string;\n      brandId?: string;\n      depth: number; // 1-5\n      breadth: number; // 1-5\n      userId: string;\n      sessionId: string;\n    };\n  };\n  'deep.research.completed': {\n    data: {\n      jobId: string;\n      reportData: DeepResearchReport;\n      sourcesCount: number;\n    };\n  };\n};\n```\n\n2. Modify `src/inngest/functions/orchestrator.ts`:\n- Accept 'deep.research.requested' event (in addition to existing)\n- Persist ResearchJob to database at start\n- Update job status as workflow progresses\n- Save final reportData to database\n- Emit 'deep.research.completed' event at end\n\n3. Add read_article tool integration in websearch.ts to fetch full articles\n\n4. Update gather-context to accept depth/breadth parameters and adjust search queries accordingly\n\n5. Update Deep Research page (`src/app/(dashboard)/deep/page.tsx`):\n- Add form for topic, depth, breadth parameters\n- Show research job history from database\n- Display real-time progress using existing RealtimeResearchStatus component",
+        "testStrategy": "Integration tests for the full deep research pipeline using TestSprite MCP sandbox. Verify database persistence at each step. Test edge cases: no results found, API failures, retry logic.",
+        "priority": "high",
+        "dependencies": [
+          1,
+          2
+        ],
+        "status": "pending",
+        "subtasks": [
+          {
+            "id": 1,
+            "title": "Add Deep Research Event Types to events.ts",
+            "description": "Create a dedicated events.ts file with deep.research.requested and deep.research.completed event type definitions including all required parameters (topic, brandId, depth, breadth, userId, sessionId).",
+            "dependencies": [],
+            "details": "1. Create `src/inngest/events.ts` if it doesn't exist (currently events are inline in client.ts)\n2. Define DeepResearchReport type for report data structure\n3. Add deep.research.requested event with: topic (string), brandId (optional string), depth (1-5 number), breadth (1-5 number), userId (string), sessionId (string)\n4. Add deep.research.completed event with: jobId (string), reportData (DeepResearchReport), sourcesCount (number)\n5. Export InngestEvents type union and update client.ts to import from events.ts\n6. Add Zod validation schemas for depth/breadth parameters (1-5 range validation)",
+            "status": "pending",
+            "testStrategy": "Unit tests verifying event type exports, Zod schema validation for depth/breadth ranges, TypeScript compilation check for type safety"
+          },
+          {
+            "id": 2,
+            "title": "Modify Orchestrator to Accept New Event and Add Database Persistence",
+            "description": "Update orchestrator.ts to listen for deep.research.requested event, create ResearchJob in database at workflow start, update job status during execution, and emit deep.research.completed on success.",
+            "dependencies": [
+              1
+            ],
+            "details": "1. Add second event trigger to orchestrator: { event: 'deep.research.requested' } alongside existing research/query.submitted\n2. At workflow start, use step.run('create-job') to persist ResearchJob to database with status='running'\n3. After gatherContext, update job status with step.run('update-job-staging')\n4. After agent fan-out/fan-in, update job status with step.run('update-job-analysis')\n5. On successful synthesis, save reportData to database and set status='completed', completedAt=now()\n6. Emit deep.research.completed event via inngest.send() with jobId, reportData, sourcesCount\n7. Wrap workflow in try/catch, update job status='failed' on error with error message in reportData\n8. Ensure database operations use Prisma with proper error handling",
+            "status": "pending",
+            "testStrategy": "Integration tests mocking database calls, verify job status transitions (pending→running→completed/failed), verify event emission on completion"
+          },
+          {
+            "id": 3,
+            "title": "Add Depth/Breadth Parameters to Gather-Context Function",
+            "description": "Extend gather-context.ts to accept depth and breadth parameters that control search query expansion, result counts per source, and context ranking thresholds.",
+            "dependencies": [
+              1
+            ],
+            "details": "1. Update gatherContext function signature to accept depth (1-5) and breadth (1-5) from event.data\n2. Depth affects: number of search variations per source, embedding comparison threshold, context ranking strictness\n3. Breadth affects: number of sources to query in parallel, max results per source (breadth * 5), total contexts returned (breadth * 10)\n4. Modify ArXiv query to expand search terms based on depth (depth > 3 adds related terms)\n5. Modify GitHub search to adjust repos searched based on breadth\n6. Modify VectorDB query to adjust topK based on depth * breadth\n7. Modify Web search to adjust result count based on breadth\n8. Update context ranking threshold: higher depth = stricter relevance cutoff\n9. Default values: depth=3, breadth=3 for backward compatibility with existing events",
+            "status": "pending",
+            "testStrategy": "Unit tests for parameter scaling logic, integration tests verifying different depth/breadth combinations produce expected result counts"
+          },
+          {
+            "id": 4,
+            "title": "Create Deep Research Page with Form and Job History",
+            "description": "Build or update the Deep Research page at src/app/(dashboard)/deep/page.tsx with a form for topic, depth, breadth inputs and a job history table fetching from database.",
+            "dependencies": [
+              2,
+              3
+            ],
+            "details": "1. Create page at src/app/(dashboard)/deep/page.tsx with server component wrapper\n2. Add form with: topic (text input, required), depth (slider/select 1-5, default 3), breadth (slider/select 1-5, default 3)\n3. Add optional brandId selector if brand_config table has entries\n4. Create server action submitDeepResearch() that sends deep.research.requested event\n5. Add ResearchJobHistory client component that fetches jobs with tabType='deep' from API\n6. Display job history table with columns: topic, status, createdAt, completedAt, actions (view report)\n7. Integrate existing RealtimeResearchStatus component for real-time progress display\n8. Add status filters (all, pending, running, completed, failed) and pagination\n9. Style with existing Tailwind design system patterns from QueryForm.tsx",
+            "status": "pending",
+            "testStrategy": "Component tests for form validation, integration tests for form submission triggering events, E2E test verifying job appears in history after completion"
+          },
+          {
+            "id": 5,
+            "title": "Implement Report Display and Error Handling",
+            "description": "Create a report viewer component for displaying deep research reports from database, with proper error boundaries and recovery UI for failed jobs.",
+            "dependencies": [
+              2,
+              4
+            ],
+            "details": "1. Create DeepResearchReport component that renders reportData JSON as structured UI\n2. Add report sections: Executive Summary, Key Findings, Sources (with citations), Agent Analysis breakdown\n3. Implement error boundary wrapper around RealtimeResearchStatus to catch streaming errors\n4. Add retry button for failed jobs that re-emits deep.research.requested with same parameters\n5. Create API route GET /api/research/[jobId] to fetch single job with full reportData\n6. Add loading skeleton states for report sections\n7. Implement report export functionality (markdown, JSON download)\n8. Handle edge cases: empty report, partial completion, timeout states\n9. Add toast notifications for job status changes using existing notification patterns",
+            "status": "pending",
+            "testStrategy": "Unit tests for report rendering with various reportData shapes, component tests for error boundary behavior, integration tests for retry functionality"
+          }
+        ]
+      },
+      {
+        "id": 5,
+        "title": "Implement Context Research Phase 2 Agent",
+        "description": "Create the context research agent that analyzes deep research reports, applies brand context matching, and implements the multi-agent analysis network per PRD Feature 2.1-2.3.",
+        "details": "1. Create `src/inngest/functions/context-research-agent.ts`:\n```typescript\nexport const contextResearchAgent = inngest.createFunction(\n  { id: 'context-research-agent', name: 'Context Research Agent' },\n  { event: 'context.research.requested' },\n  async ({ event, step, publish }) => {\n    const { researchJobId, brandId, sessionId } = event.data;\n    \n    // Step 1: Fetch deep research report from DB\n    const researchJob = await step.run('fetch-research', async () => {\n      return await prisma.researchJob.findUnique({\n        where: { id: researchJobId }\n      });\n    });\n    \n    // Step 2: Fetch brand config\n    const brandConfig = await step.run('fetch-brand', async () => {\n      return await prisma.brandConfig.findUnique({\n        where: { id: brandId }\n      });\n    });\n    \n    // Step 3: Multi-agent analysis (pattern 2)\n    const analysisResults = await Promise.all([\n      step.invoke('theme-detector', { function: themeDetectorAgent, data: {...} }),\n      step.invoke('opportunity-analyzer', { function: opportunityAnalyzer, data: {...} }),\n      step.invoke('trend-identifier', { function: trendIdentifier, data: {...} })\n    ]);\n    \n    // Step 4: Apply brand context matching using dynamic system prompts\n    const contextualizedBrief = await step.run('brand-matching', async () => {\n      // Use Claude with brand TOV as system prompt\n    });\n    \n    return { contextualizedBrief, analysisResults };\n  }\n);\n```\n\n2. Create sub-agents in `src/inngest/functions/agents/`:\n- `theme-detector-agent.ts`\n- `opportunity-analyzer-agent.ts`\n- `trend-identifier-agent.ts`\n\n3. Add event types for context research in `src/inngest/client.ts`\n\n4. Create Context Research page with form to select research job and brand",
+        "testStrategy": "Unit tests for each sub-agent in isolation. Integration test for full context research pipeline. Verify brand TOV is correctly applied to analysis output.",
+        "priority": "high",
+        "dependencies": [
+          1,
+          3,
+          4
+        ],
+        "status": "pending",
+        "subtasks": [
+          {
+            "id": 1,
+            "title": "Create context-research-agent.ts main orchestrator function",
+            "description": "Implement the main context research agent that orchestrates the multi-agent analysis network, handles event triggers, fetches research reports and brand configs from database, and coordinates sub-agent invocation.",
+            "dependencies": [],
+            "details": "Create `src/inngest/functions/context-research-agent.ts` following the analyst-agent.ts pattern (115 lines). Define the inngest.createFunction with id 'context-research-agent', event trigger 'context.research.requested', retries: 2, and throttle config. Implement steps: 1) 'fetch-research' to query researchJob by researchJobId using prisma, 2) 'fetch-brand' to get brandConfig by brandId, 3) parallel step.invoke calls using Promise.all to fan-out to theme-detector, opportunity-analyzer, and trend-identifier agents (AgentKit Pattern 2), 4) 'brand-matching' step for brand context synthesis. Use researchChannel for realtime updates with 'agent-update' and 'agent-chunk' topics. Return { contextualizedBrief, analysisResults }.",
+            "status": "pending",
+            "testStrategy": "Unit test the main function with mocked prisma calls and step.invoke responses. Verify event handling for 'context.research.requested'. Test that all three sub-agents are invoked in parallel using Promise.all. Integration test the full orchestration flow with test database records."
+          },
+          {
+            "id": 2,
+            "title": "Create theme-detector-agent.ts sub-agent",
+            "description": "Implement the theme detector sub-agent that analyzes research reports to identify key themes, patterns, and recurring topics for brand contextualization.",
+            "dependencies": [
+              1
+            ],
+            "details": "Create `src/inngest/functions/agents/theme-detector-agent.ts` following analyst-agent.ts structure. Define inngest.createFunction with id 'theme-detector-agent', event 'context/theme.detect', retries: 2, throttle: 10/min keyed by userId. Implement: 1) 'publish-theme-start' step with agent-update topic, 2) 'detect-themes' step using streamText with Claude model, system prompt instructing thematic analysis of research content. Input: researchReport JSON with findings and sources. Output structured themes: { primaryThemes: string[], secondaryThemes: string[], themeConnections: Array<{from, to, relationship}> }. Use publishTokenByTokenUpdates for streaming chunks to 'agent-chunk' topic.",
+            "status": "pending",
+            "testStrategy": "Unit test with mocked research report data. Verify streaming output publishes correctly to realtime channels. Test theme extraction accuracy with sample research reports. Test retry behavior on simulated API failures."
+          },
+          {
+            "id": 3,
+            "title": "Create opportunity-analyzer-agent.ts sub-agent",
+            "description": "Implement the opportunity analyzer sub-agent that identifies content opportunities, gaps in existing content, and potential angles for brand messaging based on research findings.",
+            "dependencies": [
+              1
+            ],
+            "details": "Create `src/inngest/functions/agents/opportunity-analyzer-agent.ts` following analyst-agent.ts pattern. Define inngest.createFunction with id 'opportunity-analyzer-agent', event 'context/opportunity.analyze', retries: 2, throttle: 10/min. Implement: 1) 'publish-opportunity-start' step, 2) 'analyze-opportunities' step using Claude with system prompt for content gap analysis and opportunity identification. Input: researchReport + brandConfig (TOV guidelines, brand knowledge). Output: { opportunities: Array<{type, description, priority, relevantFindings}>, contentGaps: string[], suggestedAngles: string[] }. Stream analysis to 'agent-chunk' topic with agent='opportunity-analyzer'.",
+            "status": "pending",
+            "testStrategy": "Unit test with sample research data and brand configurations. Verify opportunity scoring logic. Test that brand TOV guidelines influence opportunity identification. Integration test with theme-detector output to ensure complementary analysis."
+          },
+          {
+            "id": 4,
+            "title": "Create trend-identifier-agent.ts sub-agent",
+            "description": "Implement the trend identifier sub-agent that detects emerging trends, temporal patterns, and relevance signals from research data for timely content creation.",
+            "dependencies": [
+              1
+            ],
+            "details": "Create `src/inngest/functions/agents/trend-identifier-agent.ts` following analyst-agent.ts pattern. Define inngest.createFunction with id 'trend-identifier-agent', event 'context/trend.identify', retries: 2, throttle: 10/min. Implement: 1) 'publish-trend-start' step, 2) 'identify-trends' step using Claude with system prompt focused on trend detection, temporal analysis, and relevance scoring. Input: researchReport with timestamps and source metadata. Output: { emergingTrends: Array<{name, momentum, timeframe, sources}>, decliningTrends: string[], relevanceSignals: Array<{signal, strength, actionability}> }. Include trend velocity calculation logic. Stream to 'agent-chunk' topic.",
+            "status": "pending",
+            "testStrategy": "Unit test trend detection with time-series mock data. Verify momentum scoring algorithm. Test temporal pattern recognition with dated research entries. Integration test with opportunity-analyzer to ensure non-overlapping insights."
+          },
+          {
+            "id": 5,
+            "title": "Add context research event types and create Context Research UI page",
+            "description": "Extend the Inngest client with new event types for context research workflow, update channels.ts with context-specific topics, and create the Context Research page component with research job and brand selection.",
+            "dependencies": [
+              1,
+              2,
+              3,
+              4
+            ],
+            "details": "1) Update `src/inngest/client.ts` to add new event schemas: 'context.research.requested' (researchJobId, brandId, sessionId, userId), 'context/theme.detect', 'context/opportunity.analyze', 'context/trend.identify', 'context.research.completed'. 2) Extend channels.ts with 'context-progress' topic type<{stage: 'analysis' | 'brand-matching' | 'synthesis', progress: number, message: string, timestamp: string}>. Add context agent types to AgentUpdate and agent-chunk interfaces. 3) Create `src/app/research/context/page.tsx` with: dropdown to select completed research jobs (status='completed'), dropdown to select brand configs, trigger button calling POST /api/context-research, real-time progress display using researchChannel subscription, results display showing contextualizedBrief and sub-agent outputs.",
+            "status": "pending",
+            "testStrategy": "Type-check all new event schemas compile correctly. Component test Context Research page with mocked API responses. E2E test full flow: select research job → select brand → trigger → view streaming progress → display results. Verify realtime channel subscription updates UI correctly."
+          }
+        ]
+      },
+      {
+        "id": 6,
+        "title": "Implement Human-in-the-Loop Approval Workflow",
+        "description": "Create the approval workflow using Inngest's wait-for-event pattern (AgentKit Pattern 3) to pause workflows and wait for user approval before proceeding.",
+        "details": "1. Create `src/inngest/functions/approval-workflow.ts`:\n```typescript\nexport const approvalWorkflow = inngest.createFunction(\n  { id: 'approval-workflow' },\n  { event: 'approval.requested' },\n  async ({ event, step }) => {\n    const { itemId, itemType, userId, sessionId } = event.data;\n    \n    // Wait for approval (timeout: 7 days)\n    const approval = await step.waitForEvent('approval-response', {\n      event: 'approval.response',\n      match: 'data.itemId',\n      timeout: '7d'\n    });\n    \n    if (approval) {\n      if (approval.data.approved) {\n        // Emit continuation event\n        await step.sendEvent('continue-workflow', {\n          name: `${itemType}.approved`,\n          data: { itemId, approvedBy: approval.data.userId }\n        });\n      } else {\n        // Emit rejection event\n        await step.sendEvent('reject-workflow', {\n          name: `${itemType}.rejected`,\n          data: { itemId, reason: approval.data.reason }\n        });\n      }\n    }\n    \n    return { approved: approval?.data.approved ?? false };\n  }\n);\n```\n\n2. Create API route `src/app/api/approval/route.ts`:\n```typescript\nexport async function POST(request: Request) {\n  const { itemId, approved, reason, userId } = await request.json();\n  await inngest.send({\n    name: 'approval.response',\n    data: { itemId, approved, reason, userId }\n  });\n  return Response.json({ success: true });\n}\n```\n\n3. Create approval UI component `src/components/approval-prompt.tsx`:\n- Shows pending item details\n- Approve/Reject buttons\n- Optional rejection reason field\n\n4. Add approval states to content_items and research_jobs tables",
+        "testStrategy": "Integration tests simulating approval flow: request → wait → approve/reject → continuation. Test timeout behavior. Test rejection with reason flow.",
+        "priority": "medium",
+        "dependencies": [
+          1,
+          4,
+          5
+        ],
+        "status": "pending",
+        "subtasks": [
+          {
+            "id": 1,
+            "title": "Create approval-workflow.ts Inngest function with waitForEvent pattern",
+            "description": "Implement the core approval workflow Inngest function using step.waitForEvent() pattern to pause execution and wait for user approval decisions with a 7-day timeout.",
+            "dependencies": [],
+            "details": "Create `src/inngest/functions/approval-workflow.ts` with the approvalWorkflow function. The function should: 1) Listen for 'approval.requested' events; 2) Extract itemId, itemType, userId, sessionId from event data; 3) Use step.waitForEvent() to wait for 'approval.response' event with match on 'data.itemId' and 7-day timeout; 4) On approval, emit `${itemType}.approved` event with itemId and approvedBy; 5) On rejection, emit `${itemType}.rejected` event with itemId and reason; 6) Return approval status. Also add the new approval event types to src/inngest/client.ts EventSchemas: 'approval.requested', 'approval.response', 'content.approved', 'content.rejected', 'research.approved', 'research.rejected'. Register the new function in the Inngest serve() handler in src/app/api/inngest/route.ts.",
+            "status": "pending",
+            "testStrategy": "Integration test sending approval.requested event, then approval.response event, verifying the correct continuation event is emitted. Test timeout behavior by mocking time. Test both approval and rejection flows with various itemTypes."
+          },
+          {
+            "id": 2,
+            "title": "Create /api/approval route for submitting approval decisions",
+            "description": "Implement the API route that accepts approval/rejection decisions from the UI and emits the approval.response event to Inngest to resume paused workflows.",
+            "dependencies": [
+              1
+            ],
+            "details": "Create `src/app/api/approval/route.ts` with POST handler. The handler should: 1) Parse request body for itemId, approved (boolean), reason (optional string), userId; 2) Validate required fields (itemId, approved, userId); 3) Use the Inngest client to send 'approval.response' event with data: { itemId, approved, reason, userId }; 4) Return JSON response { success: true } on success; 5) Handle errors with appropriate status codes (400 for validation, 500 for Inngest errors). Also create a corresponding server action in src/app/actions.ts: submitApprovalDecision(itemId, approved, reason, userId) that calls this API endpoint for use with React Server Components.",
+            "status": "pending",
+            "testStrategy": "Unit tests for request validation (missing fields, invalid types). Integration test verifying Inngest event is sent with correct payload. Test error handling for Inngest client failures."
+          },
+          {
+            "id": 3,
+            "title": "Create approval-prompt.tsx UI component with approve/reject buttons",
+            "description": "Build the React UI component that displays pending item details and provides approve/reject buttons with an optional rejection reason field.",
+            "dependencies": [
+              2
+            ],
+            "details": "Create `src/components/approval-prompt.tsx` component. Props: itemId, itemType, itemTitle, itemDescription, itemContent (the actual content to review), onApprovalComplete callback. Component should: 1) Display item details in a clear review format with title, description, and content preview; 2) Render Approve button (green) and Reject button (red); 3) On reject click, show a textarea for optional rejection reason; 4) Use the submitApprovalDecision server action to send decision; 5) Show loading state during submission; 6) Display success/error feedback; 7) Call onApprovalComplete callback after successful submission. Style with Tailwind CSS consistent with existing components (reference QueryForm.tsx and AgentCard.tsx patterns). Add optional realtime subscription to show if another user is also reviewing.",
+            "status": "pending",
+            "testStrategy": "Component tests for approve flow (button click → action called → success state). Component tests for reject flow with reason field. Test loading and error states. Verify accessibility (keyboard navigation, ARIA labels)."
+          },
+          {
+            "id": 4,
+            "title": "Add approval status fields and integrate with content/research job updates",
+            "description": "Extend the database schema with approval status fields and update content/research job flows to trigger and respond to approval events.",
+            "dependencies": [
+              1,
+              3
+            ],
+            "details": "1) Update Prisma schema (prisma/schema.prisma): Add to ResearchContext model: approvalStatus (enum: 'draft', 'pending_approval', 'approved', 'rejected'), approvalRequestedAt (DateTime?), approvalDecidedAt (DateTime?), approvedBy (String?), rejectionReason (String?). Create new ContentItem model with same approval fields if not exists. 2) Run prisma migrate dev to apply changes. 3) Create approval channel in src/inngest/channels.ts with topics: 'approval-requested', 'approval-decided'. 4) Update content generation workflows to: emit 'approval.requested' event when content is ready for review; listen for 'content.approved'/'content.rejected' events to update status. 5) Create src/app/api/approval/pending/route.ts GET endpoint to list items pending approval for a user. 6) Add ApprovalQueue component showing all pending items with links to individual approval prompts.",
+            "status": "pending",
+            "testStrategy": "Database migration test verifying schema changes apply cleanly. Integration test for full flow: content generation → approval requested → pending list shows item → approval decision → status updated. Test realtime channel publishes approval state changes."
+          }
+        ]
+      },
+      {
+        "id": 7,
+        "title": "Implement Content Generation Phase 3 - Unified Writer",
+        "description": "Create the unified content writer agent that generates multi-format content (blog posts, social captions, product descriptions) from research and context briefs per PRD Feature 3.1.",
+        "details": "1. Create `src/inngest/functions/content-writer-agent.ts`:\n```typescript\nexport const contentWriterAgent = inngest.createFunction(\n  { id: 'content-writer-agent' },\n  { event: 'content.generation.requested' },\n  async ({ event, step, publish }) => {\n    const { contextBriefId, contentTypes, brandId, sessionId } = event.data;\n    \n    // Fetch context brief and brand\n    const [brief, brand] = await Promise.all([\n      step.run('fetch-brief', () => prisma.researchJob.findUnique({...})),\n      step.run('fetch-brand', () => prisma.brandConfig.findUnique({...}))\n    ]);\n    \n    // Generate content for each type in parallel\n    const contentResults = await Promise.all(\n      contentTypes.map(type => \n        step.run(`generate-${type}`, async () => {\n          const systemPrompt = buildSystemPrompt(brand, type);\n          const response = await anthropic.messages.create({\n            model: 'claude-3-5-sonnet-20241022',\n            system: systemPrompt,\n            messages: [{ role: 'user', content: buildContentPrompt(brief, type) }]\n          });\n          return { type, content: response.content[0].text };\n        })\n      )\n    );\n    \n    // Save drafts to database\n    const savedContent = await step.run('save-drafts', async () => {\n      return await Promise.all(\n        contentResults.map(r => \n          prisma.contentItem.create({\n            data: {\n              researchJobId: contextBriefId,\n              contentType: r.type,\n              copy: r.content,\n              status: 'draft',\n              platform: mapTypeToPlatform(r.type)\n            }\n          })\n        )\n      );\n    });\n    \n    // Request approval\n    await step.sendEvent('request-approval', {\n      name: 'approval.requested',\n      data: { itemId: savedContent[0].id, itemType: 'content' }\n    });\n    \n    return { drafts: savedContent };\n  }\n);\n```\n\n2. Create content type definitions in `src/types/content.ts`\n\n3. Create Content Generation page with:\n- Content type selection (blog, twitter, linkedin, instagram)\n- Preview of generated content\n- Edit capability before approval\n- Approval/reject buttons",
+        "testStrategy": "Unit tests for prompt building functions. Integration tests verifying content is saved to database. Test parallel generation of multiple content types. Verify brand voice is applied correctly.",
+        "priority": "medium",
+        "dependencies": [
+          1,
+          5,
+          6
+        ],
+        "status": "pending",
+        "subtasks": []
+      },
+      {
+        "id": 8,
+        "title": "Implement Canva MCP Integration for Design Generation",
+        "description": "Integrate Canva MCP server for automated design creation aligned with brand guidelines per PRD Feature 3.2, using AgentKit Pattern 6.",
+        "details": "1. Create MCP client for Canva at `src/lib/mcp/canva-client.ts`:\n```typescript\nimport { Client } from '@modelcontextprotocol/sdk/client/index.js';\n\nexport class CanvaMCPClient {\n  private client: Client;\n  \n  async createDesign(params: {\n    copy: string;\n    brandColors: { primary: string; secondary: string };\n    logoUrl?: string;\n    designType: 'social_post' | 'carousel' | 'banner';\n  }) {\n    const result = await this.client.callTool({\n      name: 'create_design',\n      arguments: params\n    });\n    return result;\n  }\n  \n  async applyBrandKit(designId: string, brandId: string) {\n    // Apply brand colors, fonts, logo\n  }\n}\n```\n\n2. Create `src/inngest/functions/canva-agent.ts`:\n```typescript\nexport const canvaDesignAgent = inngest.createFunction(\n  { id: 'canva-design-agent' },\n  { event: 'content.design.requested' },\n  async ({ event, step }) => {\n    const { contentItemId, brandId } = event.data;\n    \n    const [content, brand] = await Promise.all([\n      step.run('fetch-content', () => prisma.contentItem.findUnique({...})),\n      step.run('fetch-brand', () => prisma.brandConfig.findUnique({...}))\n    ]);\n    \n    const design = await step.run('create-design', async () => {\n      const canva = new CanvaMCPClient();\n      return await canva.createDesign({\n        copy: content.copy,\n        brandColors: brand.brandColors,\n        logoUrl: brand.logoUrl,\n        designType: mapContentTypeToDesign(content.contentType)\n      });\n    });\n    \n    // Update content item with design assets\n    await step.run('save-design', async () => {\n      await prisma.contentItem.update({\n        where: { id: contentItemId },\n        data: { designAssets: design }\n      });\n    });\n    \n    return design;\n  }\n);\n```\n\n3. Add Canva environment variables to `.env.example`:\n- CANVA_API_KEY\n- CANVA_API_SECRET\n\n4. Update Content tab UI to show design previews alongside copy",
+        "testStrategy": "Mock Canva MCP responses for unit tests. Integration test with actual Canva API in sandbox environment. Verify design assets are correctly stored and retrievable.",
+        "priority": "medium",
+        "dependencies": [
+          3,
+          7
+        ],
+        "status": "pending",
+        "subtasks": []
+      },
+      {
+        "id": 9,
+        "title": "Implement Multi-Channel Publishing Agents",
+        "description": "Create individual publisher agents for Shopify, Twitter, LinkedIn, and Instagram with platform-specific API integrations per PRD Feature 4.1.",
+        "details": "1. Create platform-specific publisher agents:\n\n`src/inngest/functions/publishers/shopify-publisher.ts`:\n```typescript\nexport const shopifyPublisher = inngest.createFunction(\n  { id: 'shopify-publisher' },\n  { event: 'publishing.shopify.requested' },\n  async ({ event, step }) => {\n    const { contentItemId } = event.data;\n    \n    const content = await step.run('fetch-content', () => \n      prisma.contentItem.findUnique({ where: { id: contentItemId } })\n    );\n    \n    const result = await step.run('publish-to-shopify', async () => {\n      const shopify = new ShopifyClient({\n        storeUrl: process.env.SHOPIFY_STORE_URL,\n        accessToken: process.env.SHOPIFY_ACCESS_TOKEN\n      });\n      \n      if (content.contentType === 'blog_post') {\n        return await shopify.blog.createArticle({...});\n      } else {\n        return await shopify.products.update({...});\n      }\n    });\n    \n    return result;\n  }\n);\n```\n\n2. Create `src/inngest/functions/publishers/social-publisher.ts` for Twitter/LinkedIn/Instagram\n\n3. Create API client wrappers in `src/lib/api-clients/`:\n- `shopify.ts` - Shopify Admin API\n- `twitter.ts` - Twitter API v2\n- `linkedin.ts` - LinkedIn Marketing API\n- `instagram.ts` - Instagram Graph API (via Meta)\n\n4. Add all required API keys to `.env.example`\n\n5. Create Publishing page showing:\n- All approved content ready for publishing\n- Platform selection checkboxes\n- Schedule date picker\n- Publish button",
+        "testStrategy": "Mock all external APIs for unit tests. Integration tests using sandbox/test accounts for each platform. Verify error handling for API rate limits and failures.",
+        "priority": "medium",
+        "dependencies": [
+          1,
+          6,
+          7
+        ],
+        "status": "pending",
+        "subtasks": []
+      },
+      {
+        "id": 10,
+        "title": "Implement Publishing Queue Manager with Retry Logic",
+        "description": "Create the queue manager for publishing jobs with exponential backoff retry logic, job status tracking, and audit logging per PRD Feature 4.2.",
+        "details": "1. Create `src/inngest/functions/queue-manager.ts`:\n```typescript\nexport const publishingQueueManager = inngest.createFunction(\n  {\n    id: 'publishing-queue-manager',\n    retries: 3,\n    backoff: { type: 'exponential', base: '30s', maxDelay: '1h' }\n  },\n  { event: 'publishing.scheduled' },\n  async ({ event, step, attempt }) => {\n    const { contentItemId, platforms, scheduledAt } = event.data;\n    \n    // Wait until scheduled time if in future\n    if (scheduledAt && new Date(scheduledAt) > new Date()) {\n      await step.sleepUntil('wait-for-schedule', new Date(scheduledAt));\n    }\n    \n    // Create queue entries\n    const queueEntries = await step.run('create-queue-entries', async () => {\n      return await Promise.all(\n        platforms.map(platform =>\n          prisma.publishingQueue.create({\n            data: {\n              contentItemId,\n              platform,\n              scheduledAt,\n              status: 'pending'\n            }\n          })\n        )\n      );\n    });\n    \n    // Publish to each platform (with individual error handling)\n    const results = await Promise.allSettled(\n      platforms.map(platform =>\n        step.invoke(`publish-${platform}`, {\n          function: getPublisherFunction(platform),\n          data: { contentItemId }\n        })\n      )\n    );\n    \n    // Update queue statuses\n    await step.run('update-statuses', async () => {\n      for (let i = 0; i < results.length; i++) {\n        const result = results[i];\n        await prisma.publishingQueue.update({\n          where: { id: queueEntries[i].id },\n          data: {\n            status: result.status === 'fulfilled' ? 'published' : 'failed',\n            publishedAt: result.status === 'fulfilled' ? new Date() : null,\n            errorLog: result.status === 'rejected' ? String(result.reason) : null,\n            retryCount: attempt\n          }\n        });\n      }\n    });\n    \n    // Log to audit\n    await step.run('audit-log', async () => {\n      await prisma.agentAuditLog.create({\n        data: {\n          agentName: 'queue-manager',\n          action: 'publish',\n          jobId: contentItemId,\n          status: results.every(r => r.status === 'fulfilled') ? 'success' : 'partial',\n          metadata: { platforms, results: results.map(r => r.status) }\n        }\n      });\n    });\n    \n    return { results };\n  }\n);\n```\n\n2. Create scheduled cron function for queue processing:\n```typescript\nexport const queueProcessor = inngest.createFunction(\n  { id: 'queue-processor' },\n  { cron: '0 * * * *' }, // Every hour\n  async ({ step }) => {\n    // Find failed jobs eligible for retry\n    const failedJobs = await step.run('find-failed', async () => {\n      return await prisma.publishingQueue.findMany({\n        where: { status: 'failed', retryCount: { lt: 3 } }\n      });\n    });\n    \n    // Re-queue each for retry\n    for (const job of failedJobs) {\n      await step.sendEvent(`retry-${job.id}`, {\n        name: 'publishing.scheduled',\n        data: { contentItemId: job.contentItemId, platforms: [job.platform] }\n      });\n    }\n  }\n);\n```\n\n3. Update Publishing page to show queue status, retry counts, and error logs",
+        "testStrategy": "Unit tests for retry logic with various failure scenarios. Integration tests simulating rate limits and temporary failures. Verify exponential backoff timing is correct. Test audit log accuracy.",
+        "priority": "medium",
+        "dependencies": [
+          1,
+          9
+        ],
+        "status": "pending",
+        "subtasks": []
+      },
+      {
+        "id": 11,
+        "title": "Create TypeScript Types and Event Definitions",
+        "description": "Consolidate all TypeScript type definitions for research, brand, content, and publishing domains, and define complete Inngest event schemas.",
+        "details": "1. Create type definitions in `src/types/`:\n\n`src/types/research.ts`:\n```typescript\nexport interface DeepResearchReport {\n  topic: string;\n  summary: string;\n  findings: Array<{\n    title: string;\n    content: string;\n    sources: string[];\n    confidence: number;\n  }>;\n  citations: Array<{\n    id: number;\n    source: string;\n    url: string;\n    title: string;\n  }>;\n  metadata: {\n    depth: number;\n    breadth: number;\n    sourcesSearched: number;\n    completedAt: string;\n  };\n}\n\nexport interface ContextBrief {\n  themes: string[];\n  opportunities: string[];\n  warnings: string[];\n  brandAlignment: {\n    tovMatch: number;\n    keywordCoverage: string[];\n    suggestions: string[];\n  };\n}\n```\n\n`src/types/content.ts`:\n```typescript\nexport type ContentType = 'blog_post' | 'social_post' | 'carousel' | 'product_description';\nexport type Platform = 'blog' | 'twitter' | 'linkedin' | 'instagram' | 'shopify';\nexport type ContentStatus = 'draft' | 'pending_approval' | 'approved' | 'rejected' | 'published';\n\nexport interface ContentDraft {\n  id: string;\n  type: ContentType;\n  copy: string;\n  designAssets?: {\n    canvaUrl?: string;\n    images?: string[];\n  };\n  status: ContentStatus;\n  platform: Platform;\n}\n```\n\n2. Update `src/inngest/client.ts` with complete event schemas:\n```typescript\nexport const inngest = new Inngest({\n  id: 'research-publishing-suite',\n  schemas: new EventSchemas().fromRecord<{\n    'deep.research.requested': { data: DeepResearchRequest };\n    'deep.research.completed': { data: DeepResearchCompleted };\n    'context.research.requested': { data: ContextResearchRequest };\n    'context.research.completed': { data: ContextResearchCompleted };\n    'content.generation.requested': { data: ContentGenerationRequest };\n    'content.generated': { data: ContentGeneratedEvent };\n    'content.design.requested': { data: DesignRequest };\n    'approval.requested': { data: ApprovalRequest };\n    'approval.response': { data: ApprovalResponse };\n    'publishing.scheduled': { data: PublishingScheduled };\n    'publishing.completed': { data: PublishingCompleted };\n  }>()\n});\n```\n\n3. Create barrel exports at `src/types/index.ts`",
+        "testStrategy": "TypeScript compilation should catch type errors. Create type guard functions and test them with valid/invalid data. Ensure all Inngest event handlers match their schemas.",
+        "priority": "high",
+        "dependencies": [],
+        "status": "pending",
+        "subtasks": []
+      },
+      {
+        "id": 12,
+        "title": "Configure Testing Infrastructure with Jest and Playwright",
+        "description": "Set up complete testing infrastructure including Jest for unit/integration tests and Playwright for E2E tests, with proper mocking patterns for external APIs.",
+        "details": "1. Update `jest.config.js` for proper path aliases and coverage:\n```javascript\nmodule.exports = {\n  preset: 'ts-jest',\n  testEnvironment: 'jsdom',\n  moduleNameMapper: {\n    '^@/(.*)$': '<rootDir>/src/$1'\n  },\n  setupFilesAfterEnv: ['<rootDir>/jest.setup.js'],\n  collectCoverageFrom: [\n    'src/**/*.{ts,tsx}',\n    '!src/**/*.d.ts',\n    '!src/types/**/*'\n  ],\n  coverageThreshold: {\n    global: { branches: 70, functions: 80, lines: 80, statements: 80 },\n    './src/inngest/**/*.ts': { branches: 85, functions: 90, lines: 90 }\n  }\n};\n```\n\n2. Create test utilities at `tests/setup/`:\n- `mock-prisma.ts` - Prisma client mock factory\n- `mock-inngest.ts` - Inngest function testing utilities\n- `mock-apis.ts` - External API mocks (Anthropic, Shopify, Twitter, etc.)\n\n3. Create test fixtures at `tests/fixtures/`:\n- `brands.ts` - Sample brand configurations\n- `research.ts` - Sample research reports\n- `content.ts` - Sample content items\n\n4. Update `playwright.config.ts` for E2E tests:\n```typescript\nexport default defineConfig({\n  testDir: './e2e',\n  use: {\n    baseURL: 'http://localhost:3000',\n    trace: 'on-first-retry'\n  },\n  webServer: {\n    command: 'npm run dev',\n    port: 3000,\n    reuseExistingServer: !process.env.CI\n  }\n});\n```\n\n5. Add npm scripts:\n```json\n\"test:unit\": \"jest --testPathPattern=unit\",\n\"test:integration\": \"jest --testPathPattern=integration\",\n\"test:e2e\": \"playwright test\",\n\"test:all\": \"npm run test:unit && npm run test:integration && npm run test:e2e\"\n```",
+        "testStrategy": "Meta-testing: Verify mock utilities work correctly. Run test suite to ensure all configurations are valid. Check coverage reports generate properly.",
+        "priority": "medium",
+        "dependencies": [
+          2
+        ],
+        "status": "pending",
+        "subtasks": []
+      },
+      {
+        "id": 13,
+        "title": "Implement Real-Time Streaming for All Phases",
+        "description": "Extend the existing Inngest realtime channels to support streaming updates across all 4 phases (Deep, Context, Content, Publishing) with unified progress tracking.",
+        "details": "1. Extend `src/inngest/channels.ts` with phase-specific topics:\n```typescript\n// Add to existing researchChannel\n.addTopic(topic('deep-progress').type<{\n  stage: 'staging' | 'reasoning' | 'reporting';\n  progress: number; // 0-100\n  message: string;\n  timestamp: string;\n}>())\n.addTopic(topic('context-progress').type<{\n  stage: 'analysis' | 'brand-matching' | 'synthesis';\n  progress: number;\n  message: string;\n  timestamp: string;\n}>())\n.addTopic(topic('content-progress').type<{\n  stage: 'writing' | 'designing' | 'approval';\n  contentType: ContentType;\n  progress: number;\n  message: string;\n  timestamp: string;\n}>())\n.addTopic(topic('publishing-progress').type<{\n  platform: Platform;\n  status: 'pending' | 'publishing' | 'published' | 'failed';\n  message: string;\n  timestamp: string;\n}>())\n```\n\n2. Create unified progress component `src/components/phase-progress.tsx`:\n```tsx\nexport function PhaseProgress({ sessionId, phase }: { sessionId: string; phase: Phase }) {\n  const { freshData } = useInngestSubscription({\n    refreshToken: () => getProgressToken(sessionId, phase)\n  });\n  \n  return (\n    <div className=\"progress-container\">\n      {/* Render phase-specific progress UI */}\n    </div>\n  );\n}\n```\n\n3. Create `src/components/stream-status.tsx` showing combined status across all phases\n\n4. Update each phase page to include PhaseProgress component\n\n5. Ensure all agent functions publish progress updates at key steps",
+        "testStrategy": "Component tests for progress rendering with various states. Integration tests verifying realtime updates are received correctly. E2E test watching full workflow progress from start to finish.",
+        "priority": "medium",
+        "dependencies": [
+          2,
+          4,
+          5,
+          7,
+          9
+        ],
+        "status": "pending",
+        "subtasks": []
+      },
+      {
+        "id": 14,
+        "title": "Create API Routes for Research and Project Management",
+        "description": "Implement REST API routes for research job management, project lifecycle, and status endpoints as specified in the PRD structural decomposition.",
+        "details": "1. Create `src/app/api/research/route.ts`:\n```typescript\n// GET - List research jobs with filtering\nexport async function GET(request: Request) {\n  const { searchParams } = new URL(request.url);\n  const status = searchParams.get('status');\n  const tabType = searchParams.get('tabType');\n  \n  const jobs = await prisma.researchJob.findMany({\n    where: {\n      ...(status && { status }),\n      ...(tabType && { tabType })\n    },\n    orderBy: { createdAt: 'desc' },\n    take: 50\n  });\n  \n  return Response.json(jobs);\n}\n\n// POST - Create new research job\nexport async function POST(request: Request) {\n  const body = await request.json();\n  \n  const job = await prisma.researchJob.create({\n    data: {\n      topic: body.topic,\n      tabType: body.tabType,\n      parameters: body.parameters,\n      status: 'pending',\n      createdBy: body.userId\n    }\n  });\n  \n  // Trigger appropriate Inngest event based on tabType\n  await inngest.send({\n    name: `${body.tabType}.research.requested`,\n    data: { jobId: job.id, ...body }\n  });\n  \n  return Response.json(job);\n}\n```\n\n2. Create `src/app/api/research/[id]/route.ts` for GET/PUT/DELETE\n\n3. Create `src/app/api/research/[id]/status/route.ts` for status polling\n\n4. Create `src/app/api/project/route.ts` for project CRUD:\n```typescript\n// Project management endpoints\n// - Create project with brand association\n// - List projects with phase completion tracking\n// - Archive completed projects\n```\n\n5. Create `src/app/api/content/route.ts` for content item management\n\n6. Create `src/app/api/publishing/route.ts` for publishing queue management",
+        "testStrategy": "Unit tests for each API route using mocked database. Integration tests verifying API → Inngest event triggering. Test error handling and validation for invalid inputs.",
+        "priority": "medium",
+        "dependencies": [
+          1,
+          11
+        ],
+        "status": "pending",
+        "subtasks": []
+      },
+      {
+        "id": 15,
+        "title": "Finalize GitHub Actions CI/CD Pipeline",
+        "description": "Complete the CI/CD configuration with parallel test execution, coverage reporting, and automated deployment to Vercel/Cloud Run.",
+        "details": "1. Create `.github/workflows/ci.yml`:\n```yaml\nname: CI\non:\n  push:\n    branches: [main]\n  pull_request:\n    branches: [main]\n\njobs:\n  lint:\n    runs-on: ubuntu-latest\n    steps:\n      - uses: actions/checkout@v4\n      - uses: actions/setup-node@v4\n        with:\n          node-version: '20'\n          cache: 'npm'\n      - run: npm ci\n      - run: npm run lint\n      - run: npm run type-check\n\n  test-unit:\n    runs-on: ubuntu-latest\n    steps:\n      - uses: actions/checkout@v4\n      - uses: actions/setup-node@v4\n        with:\n          node-version: '20'\n          cache: 'npm'\n      - run: npm ci\n      - run: npm run test:unit -- --coverage\n      - uses: codecov/codecov-action@v3\n\n  test-integration:\n    runs-on: ubuntu-latest\n    services:\n      postgres:\n        image: postgres:15\n        env:\n          POSTGRES_PASSWORD: test\n        ports:\n          - 5432:5432\n    steps:\n      - uses: actions/checkout@v4\n      - uses: actions/setup-node@v4\n      - run: npm ci\n      - run: npm run test:integration\n\n  test-e2e:\n    runs-on: ubuntu-latest\n    steps:\n      - uses: actions/checkout@v4\n      - uses: actions/setup-node@v4\n      - run: npm ci\n      - run: npx playwright install --with-deps\n      - run: npm run test:e2e\n```\n\n2. Create `.github/workflows/deploy.yml`:\n```yaml\nname: Deploy\non:\n  push:\n    branches: [main]\n\njobs:\n  deploy-vercel:\n    runs-on: ubuntu-latest\n    steps:\n      - uses: actions/checkout@v4\n      - uses: amondnet/vercel-action@v25\n        with:\n          vercel-token: ${{ secrets.VERCEL_TOKEN }}\n          vercel-org-id: ${{ secrets.VERCEL_ORG_ID }}\n          vercel-project-id: ${{ secrets.VERCEL_PROJECT_ID }}\n          vercel-args: '--prod'\n```\n\n3. Add status badges to README.md\n\n4. Configure branch protection rules requiring CI to pass",
+        "testStrategy": "Verify CI runs successfully on a test PR. Confirm coverage reports upload to Codecov. Test deployment to staging environment before main merge.",
+        "priority": "low",
+        "dependencies": [
+          12
+        ],
+        "status": "pending",
+        "subtasks": []
+      }
+    ],
+    "metadata": {
+      "created": "2026-01-23T18:33:11.003Z",
+      "updated": "2026-01-23T18:33:11.003Z",
+      "description": "Tasks for master context"
+    }
+  }
+}

@@ -1,0 +1,723 @@
+# RESEARCH & PUBLISHING SUITE - PRD
+
+> **Last Updated**: January 16, 2026  
+> **PRD Version**: 1.0 (Production-Ready)  
+> **Method**: RPG (Repository Planning Graph) + Factory.ai Token Efficiency
+
+---
+
+## 📋 OVERVIEW
+
+### Problem Statement
+
+**Current State**: Brand managers and content creators spend 80% of their time on manual research, data organization, and asset creation before publishing anywhere. Each step is disconnected:
+- Research scattered across tabs/tools (no consolidation)
+- Context analysis is manual and time-consuming
+- Content generation requires multiple tools (copywriting, design, templating)
+- Publishing workflows are error-prone without approval gates
+
+**Target Users**:
+- **Brand Managers**: Managing multiple brands with consistent guidelines (TOV, colors, keywords)
+- **Content Creators**: Producing quality content at scale (articles, social posts, designs)
+- **Marketing Teams**: Publishing across Shopify, Twitter, LinkedIn, Instagram without manual re-formatting
+
+**Success Metrics** (Q1 2026):
+- ✅ **70% automation** of Deep Research phase (researcher agents work while user sleeps)
+- ✅ **50% reduction** in content creation time (MCP Canva + unified writer)
+- ✅ **< 5% manual intervention** rate (approval workflows catch edge cases only)
+- ✅ **4x faster publishing** (parallel queue manager, no manual re-posting)
+- ✅ **8GB RAM Mac Air ready** (zero local overhead - all sandbox/CI)
+
+---
+
+## 🎯 FUNCTIONAL DECOMPOSITION
+
+> **Token Efficiency Note**: Each capability is independently testable and paginatable. Descriptions are concise (<100 tokens/section) per Factory.ai guidelines.
+
+### Capability 1: Deep Research (Phase 1)
+
+**Description**: Autonomous multi-source research gathering, summarization, and contextualization.
+
+#### Feature 1.1: Multi-Source Search Orchestration
+- **Inputs**: Topic, brand guidelines, search parameters
+- **Outputs**: Consolidated research reports (MD + JSON)
+- **Behavior**: Parallel search across web, news, Reddit, YouTube; auto-summarize; deduplicate
+- **Tech**: Inngest multi-step + search_web tool + AgentKit Pattern 4
+
+#### Feature 1.2: Content Extraction & Enrichment
+- **Inputs**: Search results + URLs
+- **Outputs**: Extracted content (text, metadata, relevance scores)
+- **Behavior**: Fetch full articles, extract key quotes, score relevance
+- **Tech**: read_article tool + Neon storage
+
+#### Feature 1.3: Real-Time Streaming (User Dashboard)
+- **Inputs**: Research progress events
+- **Outputs**: WebSocket events to frontend
+- **Behavior**: Stream research updates as they happen
+- **Tech**: AgentKit Pattern 5 (useAgent hook)
+
+---
+
+### Capability 2: Context Research (Phase 2)
+
+**Description**: Analyze research findings, identify patterns, apply brand context.
+
+#### Feature 2.1: Multi-Agent Analysis Network
+- **Inputs**: Deep research reports + brand config
+- **Outputs**: Structured analysis (themes, opportunities, warnings)
+- **Behavior**: Route reports → multiple agents (theme detector, competitor analyzer, trend identifier) → merge results
+- **Tech**: Inngest + AgentKit Pattern 2 (multi-agent routing)
+
+#### Feature 2.2: Brand Context Matching
+- **Inputs**: Analysis results + TOV guidelines
+- **Outputs**: Contextualized findings (aligned to brand voice)
+- **Behavior**: Apply brand preferences (tone, keywords, restrictions)
+- **Tech**: Dynamic system prompts (AgentKit Pattern 9)
+
+#### Feature 2.3: Human-in-the-Loop Approval
+- **Inputs**: Analysis results
+- **Outputs**: Approved/rejected context (with feedback)
+- **Behavior**: Pause workflow, wait for manager approval, resume or adjust
+- **Tech**: AgentKit Pattern 3 + Inngest pause/resume
+
+---
+
+### Capability 3: Content Generation (Phase 3)
+
+**Description**: Create unified, multi-format content (copy + design).
+
+#### Feature 3.1: Unified Content Writer
+- **Inputs**: Brand context + audience target + content type
+- **Outputs**: Draft content (copy + metadata)
+- **Behavior**: Generate multiple variants (headlines, body, CTAs), format per platform
+- **Tech**: Anthropic Claude API + dynamic prompts
+
+#### Feature 3.2: MCP Canva Integration
+- **Inputs**: Draft copy + brand assets
+- **Outputs**: Design file (Canva link + template)
+- **Behavior**: Create designs using Canva MCP server, save drafts
+- **Tech**: AgentKit Pattern 6 (MCP integration)
+
+#### Feature 3.3: Content Approval & Versioning
+- **Inputs**: Draft content + designs
+- **Outputs**: Approved content + version history
+- **Behavior**: Allow edits, track versions, archive rejects
+- **Tech**: AgentKit Pattern 3 + Neon versioning table
+
+---
+
+### Capability 4: Publishing & Distribution (Phase 4)
+
+**Description**: Publish content atomically across multiple channels with rollback support.
+
+#### Feature 4.1: Multi-Channel Publisher
+- **Inputs**: Approved content + channel configs
+- **Outputs**: Published content + verification logs
+- **Behavior**: Publish to Shopify + Twitter + LinkedIn + Instagram atomically (all or nothing)
+- **Tech**: Individual publisher agents + Inngest transaction pattern
+
+#### Feature 4.2: Queue Manager & Retries
+- **Inputs**: Publishing jobs (created by Feature 4.1)
+- **Outputs**: Job status (pending/success/failed)
+- **Behavior**: Manage queue, auto-retry on failure (exponential backoff), log all attempts
+- **Tech**: Inngest + BullMQ pattern
+
+#### Feature 4.3: Approval Gate Before Publishing
+- **Inputs**: Content + team settings
+- **Outputs**: Approval status (proceed/reject)
+- **Behavior**: Require manager sign-off before publishing to live channels
+- **Tech**: AgentKit Pattern 3 + Inngest pause
+
+---
+
+### Capability 5: Project Management (Cross-Phase)
+
+**Description**: Unified workspace for brand + content organization.
+
+#### Feature 5.1: Dashboard (4 Tabs)
+- **Inputs**: User session + project ID
+- **Outputs**: Rendered tab UI (Deep/Context/Content/Publishing)
+- **Behavior**: Navigate between phases, view status + streaming updates
+- **Tech**: Next.js + React + sidebar navigation
+
+#### Feature 5.2: Brand Config Management
+- **Inputs**: Brand settings (TOV, colors, keywords, API keys)
+- **Outputs**: Saved config in Neon
+- **Behavior**: Create/edit brand profiles, store across projects
+- **Tech**: Next.js API routes + Neon
+
+#### Feature 5.3: Project Lifecycle
+- **Inputs**: Project metadata (name, brand, status)
+- **Outputs**: Project record + phase tracking
+- **Behavior**: Create projects, track phase completion, archive old projects
+- **Tech**: Neon tables + Next.js routes
+
+---
+
+## 🏗️ STRUCTURAL DECOMPOSITION
+
+### Directory Structure (Token-Efficient Organization)
+
+```
+research-publishing-suite/
+├── .claude/                          # Claude Code context
+│   ├── CLAUDE.md                     # Overview (5KB)
+│   └── knowledge/
+│       ├── project-architecture.md   # 5-layer system + DB schema (12KB)
+│       ├── inngest-patterns.md       # 9 workflow patterns (8KB)
+│       ├── agentkit-advanced-patterns.md  # 9 AgentKit patterns (25KB)
+│       └── pinecone-basics.md        # Vector search reference (3KB)
+│
+├── .devcontainer/                    # Production-ready DevContainer
+│   ├── devcontainer.json             # VS Code + Codespaces config
+│   ├── Dockerfile                    # Node.js 20 + CLI tools
+│   ├── docker-compose.yml            # (Optional) Multi-container
+│   └── init-db.sql                   # PostgreSQL schema
+│
+├── .github/
+│   └── workflows/
+│       ├── ci.yml                    # Unit + integration tests (local + TestSprite)
+│       ├── lint.yml                  # ESLint + TypeScript check
+│       ├── deploy.yml                # Vercel (frontend) + Cloud Run (backend)
+│       └── test.yml                  # TestSprite MCP runner
+│
+├── .mcp/
+│   ├── testsprite-config.json        # TestSprite MCP settings
+│   ├── wallaby-config.json           # Wallaby MCP settings
+│   └── container-use-config.json     # Dagger container settings
+│
+├── src/
+│   ├── app/
+│   │   ├── (dashboard)/
+│   │   │   ├── layout.tsx            # Dashboard wrapper
+│   │   │   ├── deep/page.tsx         # Phase 1 UI
+│   │   │   ├── context/page.tsx      # Phase 2 UI
+│   │   │   ├── content/page.tsx      # Phase 3 UI
+│   │   │   └── publishing/page.tsx   # Phase 4 UI
+│   │   │
+│   │   ├── api/
+│   │   │   ├── inngest/route.ts      # Inngest event handler
+│   │   │   ├── brand/route.ts        # Brand config CRUD
+│   │   │   ├── project/route.ts      # Project management
+│   │   │   └── research/route.ts     # Research status endpoint
+│   │   │
+│   │   ├── layout.tsx                # Root layout
+│   │   └── page.tsx                  # Home/projects page
+│   │
+│   ├── inngest/
+│   │   ├── client.ts                 # Inngest client singleton
+│   │   ├── events.ts                 # Type definitions
+│   │   ├── deep-research-agent.ts    # Phase 1 (multi-step search)
+│   │   ├── context-research-agent.ts # Phase 2 (analysis network)
+│   │   ├── content-writer-agent.ts   # Phase 3 (unified writer)
+│   │   ├── canva-agent.ts            # Phase 3 (design)
+│   │   ├── shopify-publisher.ts      # Phase 4 (e-commerce)
+│   │   ├── social-publisher.ts       # Phase 4 (social media)
+│   │   ├── queue-manager.ts          # Phase 4 (queue + retry logic)
+│   │   └── approval-workflow.ts      # Cross-phase (human-in-loop)
+│   │
+│   ├── lib/
+│   │   ├── db.ts                     # Neon client + helpers
+│   │   ├── api-clients.ts            # External API wrappers (Anthropic, Twitter, etc.)
+│   │   ├── mcp-integrations.ts       # MCP server helpers
+│   │   └── utils.ts                  # Shared utilities
+│   │
+│   ├── components/
+│   │   ├── sidebar.tsx               # Tab navigation
+│   │   ├── phase-container.tsx       # Phase UI wrapper
+│   │   ├── research-display.tsx      # Phase 1 results display
+│   │   ├── context-display.tsx       # Phase 2 results display
+│   │   ├── content-editor.tsx        # Phase 3 draft editor
+│   │   ├── publish-preview.tsx       # Phase 4 preview
+│   │   └── stream-status.tsx         # Real-time status updates
+│   │
+│   └── types/
+│       ├── research.ts               # Research domain types
+│       ├── brand.ts                  # Brand config types
+│       ├── content.ts                # Content types
+│       └── publishing.ts             # Publishing types
+│
+├── db/
+│   ├── migrations/
+│   │   ├── 001_initial_schema.sql    # Phase 1-4 core tables
+│   │   ├── 002_add_versioning.sql    # Content versions
+│   │   └── 003_add_queue.sql         # Publishing queue
+│   │
+│   └── seeds/
+│       └── seed-sample-brands.sql    # Dev data
+│
+├── tests/
+│   ├── setup/
+│   │   ├── testsprite.ts             # TestSprite MCP setup
+│   │   ├── wallaby.ts                # Wallaby MCP setup
+│   │   └── container.ts              # Dagger container setup
+│   │
+│   ├── unit/                         # Wallaby + Jest (local or TestSprite)
+│   │   ├── lib/api-clients.test.ts
+│   │   ├── lib/utils.test.ts
+│   │   └── components/sidebar.test.tsx
+│   │
+│   ├── integration/                  # TestSprite MCP sandbox
+│   │   ├── api/brand.test.ts         # API integration tests
+│   │   ├── inngest/deep-research.test.ts
+│   │   └── db/migrations.test.ts
+│   │
+│   ├── e2e/                          # TestSprite MCP sandbox
+│   │   ├── deep-research-flow.test.ts     # Full Phase 1 workflow
+│   │   ├── content-generation-flow.test.ts  # Phases 1-3
+│   │   └── publish-flow.test.ts           # Full workflow
+│   │
+│   └── fixtures/
+│       ├── brands.ts                 # Test brand data
+│       ├── research.ts               # Test research results
+│       └── content.ts                # Test content examples
+│
+├── .env.example                      # All required variables
+├── jest.config.js                    # Jest configuration
+├── tsconfig.json                     # TypeScript config
+├── next.config.js                    # Next.js config
+├── package.json                      # Dependencies + scripts
+├── README.md                         # Quick start guide
+└── ROADMAP.md                        # Development roadmap
+
+```
+
+### Module Definitions (Token-Efficient)
+
+| Module | Maps to Capability | Responsibility | Public Exports |
+|--------|-------------------|-----------------|-----------------|
+| `inngest/deep-research-agent` | Capability 1 | Multi-step research orchestration | `startDeepResearch()` |
+| `inngest/context-research-agent` | Capability 2 | Analysis network + brand matching | `startContextResearch()` |
+| `inngest/content-writer-agent` | Capability 3 | Unified content generation | `generateContent()` |
+| `inngest/canva-agent` | Capability 3 | Design creation via MCP | `createCanvaDesign()` |
+| `inngest/shopify-publisher` | Capability 4 | E-commerce publishing | `publishToShopify()` |
+| `inngest/social-publisher` | Capability 4 | Social media publishing | `publishToSocial()` |
+| `inngest/queue-manager` | Capability 4 | Queue + retry logic | `publishWithQueue()` |
+| `components/sidebar` | Capability 5 | Tab navigation | `Sidebar` component |
+| `lib/db` | Cross-cutting | Database access layer | `sql()`, `prisma()` |
+| `lib/api-clients` | Cross-cutting | External API wrappers | `anthropic()`, `twitter()`, etc. |
+
+---
+
+## 🔗 DEPENDENCY CHAIN (Topological Order)
+
+### Layer 0: Foundation (No Dependencies)
+- **`types/*`** - Core TypeScript interfaces (research, brand, content, publishing)
+- **`lib/db`** - Neon client (depends only on environment)
+- **`lib/utils`** - Shared utilities (logging, formatting, validation)
+
+### Layer 1: Infrastructure (Depends on Layer 0)
+- **`inngest/client`** - Inngest singleton (depends on env + types)
+- **`lib/api-clients`** - Wrapper for external APIs (depends on types + utils)
+- **`lib/mcp-integrations`** - MCP server helpers (depends on utils)
+
+### Layer 2: Core Agents (Depends on Layer 1)
+- **`inngest/deep-research-agent`** - Parallel search + summarization
+- **`inngest/context-research-agent`** - Multi-agent routing (depends on deep-research)
+- **`inngest/content-writer-agent`** - Unified writer (depends on context-research)
+
+### Layer 3: Specialized Agents (Depends on Layer 2)
+- **`inngest/canva-agent`** - Design creation (depends on content-writer)
+- **`inngest/shopify-publisher`** - Shopify publishing (depends on api-clients + db)
+- **`inngest/social-publisher`** - Social publishing (depends on api-clients + db)
+- **`inngest/approval-workflow`** - Human gate (depends on all publishers)
+
+### Layer 4: Orchestration (Depends on Layer 3)
+- **`inngest/queue-manager`** - Publishing queue (depends on all publishers)
+
+### Layer 5: Frontend (Depends on Layers 1-4)
+- **`components/*`** - UI components (depends on types + lib/)
+- **`app/(dashboard)/*`** - Pages (depends on components + api/)
+
+### Layer 6: API Routes (Depends on Layers 0-4)
+- **`app/api/*`** - Next.js API routes (depends on agents + db)
+
+---
+
+## 📊 IMPLEMENTATION ROADMAP
+
+### Week 1: Foundation (Parallel Phase A + B)
+
+**Phase A: Database + Infrastructure**
+- [ ] Create Neon schema (research_jobs, brand_config, content_items, publishing_queue)
+- [ ] Setup Inngest client + types + events
+- [ ] Setup DevContainer (single Node.js container with Inngest CLI)
+- [ ] Configure GitHub Actions (CI/CD shell)
+
+**Phase B: Frontend Shell**
+- [ ] Create sidebar navigation + layout
+- [ ] Create 4 phase page stubs (empty, with routing)
+- [ ] Setup real-time streaming hook (useAgent pattern)
+- [ ] Deploy to Vercel (empty but functional)
+
+**Sync Point**: DB accessible locally + Vercel shows empty dashboard
+
+---
+
+### Week 2: Deep Research (Phase 1)
+
+**Feature 1.1: Multi-Source Search**
+- [ ] Implement `deep-research-agent.ts` (Inngest function)
+- [ ] Use search_web + read_article tools
+- [ ] Parallel search using Inngest parallel execution
+- [ ] Store results in Neon
+
+**Feature 1.2: Streaming to Frontend**
+- [ ] Implement useAgent hook (AgentKit Pattern 5)
+- [ ] Create research-display component
+- [ ] Test streaming in dashboard
+
+**Feature 1.3: Testing**
+- [ ] Unit tests (jest + wallaby via MCP or CLI)
+- [ ] Integration tests (TestSprite MCP sandbox)
+- [ ] E2E test (full Phase 1 workflow)
+
+**Test Strategy** (Factory.ai efficient):
+```
+- Wallaby: Local unit test watcher (fast feedback)
+- TestSprite MCP: Run integration + E2E in sandbox (no local overhead)
+- CI (GitHub Actions): Full suite on push
+```
+
+**Sync Point**: Phase 1 tab shows research results streaming in real-time
+
+---
+
+### Week 3: Context Research (Phase 2)
+
+**Feature 2.1: Multi-Agent Network**
+- [ ] Implement `context-research-agent.ts`
+- [ ] Use AgentKit Pattern 2 (multi-agent routing)
+- [ ] Analyze research → themes, opportunities, warnings
+- [ ] Store analysis in Neon
+
+**Feature 2.2: Human-in-Loop Approval**
+- [ ] Implement approval gate (AgentKit Pattern 3)
+- [ ] Pause Inngest workflow, show UI prompt
+- [ ] Resume or adjust on approval/rejection
+
+**Feature 2.3: Brand Context Matching**
+- [ ] Dynamic system prompts based on brand TOV
+- [ ] Store brand configs in Neon
+- [ ] Create brand management UI
+
+**Testing**:
+- Wallaby: Unit tests for routing logic
+- TestSprite MCP: Multi-agent network integration
+- CI: Full workflow
+
+**Sync Point**: Phase 2 tab shows analysis + approval gate works
+
+---
+
+### Week 4: Content Generation (Phase 3)
+
+**Feature 3.1: Unified Content Writer**
+- [ ] Implement `content-writer-agent.ts`
+- [ ] Call Anthropic API with dynamic prompts
+- [ ] Generate variants (headlines, body, CTAs)
+- [ ] Store drafts in Neon
+
+**Feature 3.2: MCP Canva Integration**
+- [ ] Implement `canva-agent.ts`
+- [ ] Use AgentKit Pattern 6 (MCP server)
+- [ ] Create designs from copy
+- [ ] Store design metadata
+
+**Feature 3.3: Content Approval + Versioning**
+- [ ] Allow manual edits to drafts
+- [ ] Track version history
+- [ ] Approve/reject with comments
+
+**Testing**:
+- Wallaby: Prompt engineering tests
+- TestSprite MCP: MCP Canva integration
+- Container sandbox (Dagger): Full design workflow
+
+**Sync Point**: Phase 3 shows drafts + designs, approvals work
+
+---
+
+### Week 5: Publishing (Phase 4)
+
+**Feature 4.1: Multi-Channel Publisher**
+- [ ] Implement individual publisher agents (Shopify, Twitter, LinkedIn, Instagram)
+- [ ] Use `shopify-publisher.ts` + `social-publisher.ts`
+- [ ] Call respective APIs (Shopify, Twitter, LinkedIn SDK)
+
+**Feature 4.2: Queue Manager + Retries**
+- [ ] Implement `queue-manager.ts`
+- [ ] Manage publishing jobs (BullMQ pattern via Inngest)
+- [ ] Exponential backoff on failures
+- [ ] Log all attempts
+
+**Feature 4.3: Approval Gate**
+- [ ] Require manager sign-off before publishing live
+- [ ] Show preview of what will be published
+
+**Testing**:
+- TestSprite MCP: Mock API calls, test queue logic
+- Container sandbox: Full publishing workflow with retries
+
+**Sync Point**: Phase 4 shows queue + published confirmations
+
+---
+
+### Week 6: Integration + Polish
+
+- [ ] E2E test full workflow (Phase 1 → Phase 4)
+- [ ] Performance optimization (CI/CD metrics)
+- [ ] DevContainer documentation
+- [ ] README + ROADMAP
+- [ ] Deploy to production (Vercel + Cloud Run)
+
+---
+
+## 🧪 TESTING STRATEGY (Factory.ai Token-Efficient)
+
+### Philosophy
+**Minimize local overhead on Mac Air (8GB RAM, 250GB HD).**
+- ✅ Unit tests via Wallaby MCP (fast, local or cloud)
+- ✅ Integration + E2E via TestSprite MCP sandbox (no local DB overhead)
+- ✅ CI/CD via GitHub Actions (parallel, server-side)
+- ❌ No local Docker daemon (except CodeSpaces or devcontainer)
+- ❌ No local npm install of headless browsers (TestSprite has them)
+
+### Test Organization
+
+| Test Type | Runner | Env | When | File Pattern |
+|-----------|--------|-----|------|--------------|
+| Unit | Wallaby (MCP or CLI) | Local or Cloud | On save | `*.test.ts` in `src/` |
+| Integration | TestSprite MCP | Sandbox | Pre-commit | `tests/integration/*.test.ts` |
+| E2E | TestSprite MCP | Sandbox | Pre-commit + CI | `tests/e2e/*.test.ts` |
+| Performance | GitHub Actions | Server | On push | `.github/workflows/perf.yml` |
+
+### Coverage Thresholds
+- Global: 80% lines, 70% branches
+- Critical code (agents, db): 90% lines, 85% branches
+- UI components: 75% lines
+
+### Key Commands
+
+```bash
+# Development (local, fast feedback)
+npm run test:watch          # Wallaby MCP - unit tests only
+npm run test:coverage       # Generate coverage report
+
+# Pre-commit (sandbox, comprehensive)
+npm run test:testsprite     # TestSprite MCP - integration + E2E
+
+# CI/CD (server, full suite)
+# Automatically runs on: git push, PR open
+# See: .github/workflows/test.yml
+```
+
+---
+
+## 🐳 DEVCONTAINER SETUP (Production-Ready)
+
+### Single DevContainer (Recommended)
+
+**File: `.devcontainer/devcontainer.json`**
+```json
+{
+  "name": "Research & Publishing Suite",
+  "image": "mcr.microsoft.com/vscode/devcontainers/typescript-node:20",
+  "features": {
+    "ghcr.io/devcontainers/features/github-cli:1": {},
+    "ghcr.io/devcontainers/features/node:20": {}
+  },
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "ms-vscode.vscode-typescript-next",
+        "Wallabyte.wallaby-vscode",
+        "GitHub.copilot"
+      ]
+    }
+  },
+  "forwardPorts": [3000, 8288, 5432],
+  "postCreateCommand": "npm install && npm run setup:db",
+  "mounts": [
+    "source=${localEnv:HOME}/.ssh,target=/home/node/.ssh,readonly"
+  ]
+}
+```
+
+**File: `.devcontainer/Dockerfile`**
+```dockerfile
+FROM node:20-alpine
+
+RUN apk add --no-cache \
+  postgresql-client \
+  python3 \
+  make \
+  g++
+
+# Install global tools
+RUN npm install -g \
+  pnpm@latest \
+  @inngest/cli@latest \
+  @ts-node/dist/index.js
+
+WORKDIR /workspaces/research-suite
+```
+
+**Setup Commands**:
+```bash
+# In devcontainer terminal
+npm install                 # Install deps
+npm run setup:db           # Run migrations (Neon)
+npm run dev                # Start Next.js + Inngest
+```
+
+### Alternatives
+
+**Option B: Docker Compose** (if you need PostgreSQL local)
+```yaml
+version: '3.8'
+services:
+  app:
+    build: .
+    ports:
+      - "3000:3000"
+      - "8288:8288"
+    depends_on:
+      - db
+  db:
+    image: postgres:15
+    environment:
+      POSTGRES_PASSWORD: test
+      POSTGRES_DB: research_suite
+    ports:
+      - "5432:5432"
+```
+
+**Option C: Vercel Frontend + Cloud Run Backend** (production)
+- Frontend: Vercel (auto-deploy on push)
+- Backend: Google Cloud Run (Inngest functions)
+- DB: Neon PostgreSQL (serverless)
+
+---
+
+## 🤖 AGENTS.md - TESTING COORDINATION
+
+See separate `AGENTS.md` file for detailed testing orchestration with:
+- TestSprite MCP server integration
+- Wallaby MCP coordination
+- Dagger container-use setup
+- Multi-agent test execution patterns
+- Token efficiency guidelines
+
+**Quick Summary**:
+```bash
+# Development (you write code locally in Codespaces)
+Wallaby (MCP) watches unit tests → instant feedback
+
+# Pre-commit (before git push)
+TestSprite (MCP) runs integration + E2E → sandbox, no local overhead
+
+# CI/CD (GitHub Actions)
+Full suite runs in parallel → coverage reports → deploy
+```
+
+---
+
+## 🚀 DEPLOYMENT OPTIONS
+
+### Option 1: Vercel (Frontend) + Cloud Run (Backend) ✅ RECOMMENDED
+
+**Why**: Fully serverless, scales, no DevOps overhead
+
+```bash
+# Frontend (Next.js)
+vercel deploy --prod
+
+# Backend (Inngest functions)
+gcloud run deploy research-suite \
+  --source . \
+  --allow-unauthenticated \
+  --set-env-vars="DATABASE_URL=$NEON_URL,INNGEST_KEY=$KEY"
+```
+
+### Option 2: Kubernetes (Pod)
+
+Use DevContainer as base image:
+```dockerfile
+FROM node:20-alpine
+COPY . /app
+WORKDIR /app
+RUN npm install --production
+CMD ["npm", "run", "start"]
+```
+
+Deploy via:
+```bash
+docker build -t research-suite:latest .
+kubectl apply -f k8s/deployment.yaml
+```
+
+### Option 3: Docker Compose (Local/VPS)
+
+```bash
+docker-compose -f .devcontainer/docker-compose.yml up -d
+```
+
+---
+
+## 📋 ENVIRONMENT SETUP
+
+**File: `.env.example`**
+```env
+# Database
+DATABASE_URL=postgresql://user:pass@neon.tech/research_suite
+
+# Inngest
+INNGEST_EVENT_KEY=evt_prod_xxx
+INNGEST_SIGNING_KEY=signkey_prod_xxx
+
+# External APIs
+ANTHROPIC_API_KEY=sk-ant-xxx
+TWITTER_API_KEY=xxx
+TWITTER_API_SECRET=xxx
+LINKEDIN_CLIENT_ID=xxx
+LINKEDIN_CLIENT_SECRET=xxx
+SHOPIFY_API_KEY=xxx
+SHOPIFY_API_SECRET=xxx
+
+# Canva MCP
+CANVA_API_KEY=xxx
+
+# App
+NEXT_PUBLIC_APP_URL=http://localhost:3000
+NODE_ENV=development
+```
+
+---
+
+## 🎯 SUCCESS CRITERIA (Production Readiness)
+
+- ✅ All 4 phases functional + tested
+- ✅ < 5 min deployment time (CI/CD)
+- ✅ Zero local package pollution (sandboxed tests)
+- ✅ DevContainer spins up in < 5 min
+- ✅ 80%+ test coverage
+- ✅ <2s page load (Vercel + Next.js optimizations)
+- ✅ < 5% error rate on publishing jobs
+- ✅ Approval workflows prevent 99% of bad publishes
+
+---
+
+## 📚 REFERENCES
+
+- **Architecture**: See `.claude/knowledge/project-architecture.md`
+- **Inngest Patterns**: See `.claude/knowledge/inngest-patterns.md`
+- **AgentKit Patterns**: See `.claude/knowledge/agentkit-advanced-patterns.md`
+- **Testing**: See `AGENTS.md` (separate file)
+- **Factory.ai Token Efficiency**: https://docs.factory.ai/guides/power-user/token-efficiency
+
+---
+
+**Created**: January 16, 2026  
+**Status**: Ready for Implementation (Task Master Parse)  
+**Next Step**: `task-master parse-prd prd.txt --output-format=taskmaster-json`

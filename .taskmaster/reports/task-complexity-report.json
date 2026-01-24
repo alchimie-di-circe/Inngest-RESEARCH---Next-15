@@ -1,0 +1,133 @@
+{
+	"meta": {
+		"generatedAt": "2026-01-23T18:39:27.768Z",
+		"tasksAnalyzed": 15,
+		"totalTasks": 15,
+		"analysisCount": 15,
+		"thresholdScore": 5,
+		"projectName": "Task Master",
+		"usedResearch": true
+	},
+	"complexityAnalysis": [
+		{
+			"taskId": 1,
+			"taskTitle": "Extend Database Schema for Full Research Publishing Suite",
+			"complexityScore": 4,
+			"recommendedSubtasks": 3,
+			"expansionPrompt": "Break down the Prisma schema extension task into: 1) Adding core models (ResearchJob, BrandConfig, ContentItem, PublishingQueue, AgentAuditLog) with proper relations; 2) Adding indexes and constraints; 3) Creating database utility file with Prisma client singleton and type exports. Consider that the existing schema only has ResearchContext and AgentRun models which need to be integrated or replaced.",
+			"reasoning": "The existing schema is minimal (only 2 models). The task requires adding 5 new models with relations, indexes, and JSON fields. Prisma migrations are straightforward but need careful relation design between ResearchJob→ContentItem→PublishingQueue. Low-medium complexity because Prisma abstracts SQL complexity."
+		},
+		{
+			"taskId": 2,
+			"taskTitle": "Create Dashboard Layout with 4-Tab Navigation",
+			"complexityScore": 3,
+			"recommendedSubtasks": 3,
+			"expansionPrompt": "Break down the dashboard layout task into: 1) Creating the (dashboard) route group with layout.tsx containing flex sidebar + main layout; 2) Creating Sidebar component with 4 navigation links using existing dark theme (slate-950, etc.); 3) Creating 4 page stubs for /deep, /context, /content, /publishing and updating root redirect. Existing components use consistent Tailwind dark theme patterns to follow.",
+			"reasoning": "The codebase has existing page.tsx with dark theme patterns (bg-slate-950, border-slate-700) that can be reused. Next.js 15 app router patterns are established. This is standard UI scaffolding with existing design patterns to follow. Relatively simple task."
+		},
+		{
+			"taskId": 3,
+			"taskTitle": "Implement Brand Configuration Management",
+			"complexityScore": 5,
+			"recommendedSubtasks": 4,
+			"expansionPrompt": "Break down brand configuration management into: 1) Creating API routes at /api/brand and /api/brand/[id] for CRUD operations; 2) Creating TypeScript types for BrandConfig interface; 3) Creating brand-form.tsx component with form fields for TOV guidelines, colors, logo, platform history; 4) Creating brand-list.tsx and brand-selector.tsx dropdown component. Depends on Task 1 for Prisma schema.",
+			"reasoning": "This is a standard CRUD implementation with API routes + UI components. No existing brand-related code exists. Requires form handling, validation, and dropdown selector. The UI components need styling consistent with existing dark theme. Medium complexity due to form complexity and multiple components needed."
+		},
+		{
+			"taskId": 4,
+			"taskTitle": "Refactor Deep Research Agent for PRD Compliance",
+			"complexityScore": 6,
+			"recommendedSubtasks": 5,
+			"expansionPrompt": "Break down deep research refactoring into: 1) Updating events.ts with new deep.research.requested/completed event types; 2) Modifying orchestrator.ts to accept new event, persist ResearchJob at start, update status during workflow; 3) Adding depth/breadth parameters to gather-context.ts affecting search queries; 4) Implementing database persistence in orchestrator with error handling; 5) Updating Deep Research page with form for depth/breadth params and job history display. Existing orchestrator has solid multi-agent pattern to build upon.",
+			"reasoning": "The existing orchestrator.ts (190 lines) and gather-context.ts (230 lines) are well-structured and functional. Modifications are additive rather than rewrite. Need to add event types, database persistence, and parameter handling. The existing RealtimeResearchStatus component (544 lines) can be reused. Medium-high complexity due to integration points."
+		},
+		{
+			"taskId": 5,
+			"taskTitle": "Implement Context Research Phase 2 Agent",
+			"complexityScore": 7,
+			"recommendedSubtasks": 5,
+			"expansionPrompt": "Break down context research agent into: 1) Creating context-research-agent.ts main function with event handler; 2) Creating theme-detector-agent.ts sub-agent; 3) Creating opportunity-analyzer-agent.ts sub-agent; 4) Creating trend-identifier-agent.ts sub-agent; 5) Implementing brand context matching using dynamic system prompts and creating Context Research page. Use existing agent patterns from analyst-agent.ts (115 lines) as template.",
+			"reasoning": "This requires creating 4 new agent files plus orchestration. The existing analyst-agent.ts provides excellent template with streaming, retry logic, and realtime updates. However, the multi-agent analysis network pattern with brand TOV integration adds complexity. Need to create new event types and page. Higher complexity due to multiple new components."
+		},
+		{
+			"taskId": 6,
+			"taskTitle": "Implement Human-in-the-Loop Approval Workflow",
+			"complexityScore": 5,
+			"recommendedSubtasks": 4,
+			"expansionPrompt": "Break down approval workflow into: 1) Creating approval-workflow.ts Inngest function with waitForEvent pattern (7-day timeout); 2) Creating /api/approval route to emit approval.response event; 3) Creating approval-prompt.tsx UI component with approve/reject buttons and reason field; 4) Adding approval event types and integrating with content/research job status updates. Inngest waitForEvent pattern is documented but new to this codebase.",
+			"reasoning": "The waitForEvent pattern is a core Inngest feature but not currently used in the codebase. Requires understanding of event matching and timeout handling. The API route is simple, and UI component is straightforward. Medium complexity due to new pattern introduction and proper integration with existing flows."
+		},
+		{
+			"taskId": 7,
+			"taskTitle": "Implement Content Generation Phase 3 - Unified Writer",
+			"complexityScore": 6,
+			"recommendedSubtasks": 5,
+			"expansionPrompt": "Break down content writer agent into: 1) Creating content-writer-agent.ts main function with content generation logic; 2) Creating prompt building utilities for different content types (blog, twitter, linkedin, instagram); 3) Creating content type definitions in types/content.ts; 4) Implementing parallel content generation for multiple types using existing fan-out pattern; 5) Creating Content Generation page with type selection, preview, and edit capability. Reuse ai SDK patterns from existing agents.",
+			"reasoning": "The existing agents use streamText from 'ai' SDK with good patterns. Need to create prompt builders for 4 content types, handle parallel generation (existing pattern in orchestrator), save drafts to DB, and integrate with approval flow. UI needs preview and edit capabilities. Medium-high complexity."
+		},
+		{
+			"taskId": 8,
+			"taskTitle": "Implement Canva MCP Integration for Design Generation",
+			"complexityScore": 7,
+			"recommendedSubtasks": 4,
+			"expansionPrompt": "Break down Canva MCP integration into: 1) Creating MCP client wrapper for Canva at lib/mcp/canva-client.ts with design creation methods; 2) Creating canva-agent.ts Inngest function to orchestrate design generation; 3) Integrating brand colors and logo from BrandConfig into design requests; 4) Updating Content tab UI to show design previews alongside copy with proper error handling. This is greenfield MCP integration.",
+			"reasoning": "No MCP client exists in the codebase currently. Requires understanding Canva MCP API, implementing client wrapper, and handling design asset storage. The MCP SDK integration is new and requires learning curve. Higher complexity due to external API integration and new patterns."
+		},
+		{
+			"taskId": 9,
+			"taskTitle": "Implement Multi-Channel Publishing Agents",
+			"complexityScore": 8,
+			"recommendedSubtasks": 6,
+			"expansionPrompt": "Break down multi-channel publishing into: 1) Creating shopify-publisher.ts agent with Shopify Admin API integration; 2) Creating twitter-publisher.ts agent with Twitter API v2; 3) Creating linkedin-publisher.ts agent with LinkedIn Marketing API; 4) Creating instagram-publisher.ts agent with Instagram Graph API; 5) Creating API client wrappers in lib/api-clients/ for each platform; 6) Creating Publishing page with platform selection, scheduling, and status display. Each platform has unique API requirements.",
+			"reasoning": "This requires 4 separate external API integrations, each with different authentication, rate limits, and data formats. Shopify uses REST Admin API, Twitter uses OAuth 2.0 with v2 API, LinkedIn uses OAuth, Instagram uses Meta Graph API. High complexity due to 4 distinct API integrations with different patterns and error handling requirements."
+		},
+		{
+			"taskId": 10,
+			"taskTitle": "Implement Publishing Queue Manager with Retry Logic",
+			"complexityScore": 6,
+			"recommendedSubtasks": 4,
+			"expansionPrompt": "Break down queue manager into: 1) Creating queue-manager.ts with exponential backoff retry configuration and scheduled execution; 2) Creating cron-based queue-processor.ts for failed job retry; 3) Implementing audit logging to AgentAuditLog table; 4) Updating Publishing page to show queue status, retry counts, and error logs. Inngest has built-in retry/backoff but requires proper configuration.",
+			"reasoning": "Inngest provides built-in retry with exponential backoff (retries: 3, backoff: { type: 'exponential' }). The existing agents show retry patterns. Need to implement sleepUntil for scheduling, Promise.allSettled for parallel publishing with individual error handling, and audit logging. Medium-high complexity due to coordination of multiple publishers."
+		},
+		{
+			"taskId": 11,
+			"taskTitle": "Create TypeScript Types and Event Definitions",
+			"complexityScore": 4,
+			"recommendedSubtasks": 3,
+			"expansionPrompt": "Break down TypeScript types task into: 1) Creating types/research.ts with DeepResearchReport, ContextBrief interfaces; 2) Creating types/content.ts with ContentType, Platform, ContentStatus, ContentDraft types; 3) Updating inngest/client.ts with complete event schemas for all events (deep, context, content, approval, publishing). Existing types.ts and channels.ts provide patterns.",
+			"reasoning": "The existing types.ts (33 lines) and event schemas in client.ts provide clear patterns. This is mostly type definition work without runtime logic. Need to ensure type consistency across all modules. Lower complexity as it's primarily definition work that follows existing patterns."
+		},
+		{
+			"taskId": 12,
+			"taskTitle": "Configure Testing Infrastructure with Jest and Playwright",
+			"complexityScore": 5,
+			"recommendedSubtasks": 4,
+			"expansionPrompt": "Break down testing infrastructure into: 1) Updating jest.config.js with path aliases, coverage thresholds for inngest functions; 2) Creating test utilities at tests/setup/ for mock-prisma.ts, mock-inngest.ts, mock-apis.ts; 3) Creating test fixtures at tests/fixtures/ for brands, research, content; 4) Updating playwright.config.ts with webServer configuration. package.json already has Jest/Playwright dependencies.",
+			"reasoning": "Jest and Playwright are already installed and partially configured. playwright.config.ts exists (75 lines) with basic setup. No tests directory exists yet. Need to create mock utilities for Prisma, Inngest, and external APIs. Medium complexity due to mock setup requirements for external dependencies."
+		},
+		{
+			"taskId": 13,
+			"taskTitle": "Implement Real-Time Streaming for All Phases",
+			"complexityScore": 5,
+			"recommendedSubtasks": 4,
+			"expansionPrompt": "Break down realtime streaming into: 1) Extending channels.ts with deep-progress, context-progress, content-progress, publishing-progress topics; 2) Creating unified phase-progress.tsx component using useInngestSubscription hook; 3) Creating stream-status.tsx showing combined status across all phases; 4) Updating each phase page to include PhaseProgress component. Existing RealtimeResearchStatus.tsx (544 lines) provides excellent patterns.",
+			"reasoning": "The existing channels.ts has 12 topic types already defined with proper TypeScript typing. RealtimeResearchStatus.tsx demonstrates complete subscription and state management patterns. This is extension of existing patterns rather than new implementation. Medium complexity due to coordinating multiple phases."
+		},
+		{
+			"taskId": 14,
+			"taskTitle": "Create API Routes for Research and Project Management",
+			"complexityScore": 4,
+			"recommendedSubtasks": 4,
+			"expansionPrompt": "Break down API routes into: 1) Creating /api/research routes for CRUD operations with filtering by status/tabType; 2) Creating /api/research/[id] and /api/research/[id]/status routes; 3) Creating /api/project routes for project CRUD with brand association; 4) Creating /api/content and /api/publishing routes for content and queue management. Follow existing api/inngest/route.ts patterns.",
+			"reasoning": "Standard Next.js API route implementation. The existing api/inngest/route.ts shows basic pattern. Need to create 6-8 route files with CRUD operations and Inngest event triggering. Lower-medium complexity as it's standard REST API work with established patterns."
+		},
+		{
+			"taskId": 15,
+			"taskTitle": "Finalize GitHub Actions CI/CD Pipeline",
+			"complexityScore": 4,
+			"recommendedSubtasks": 3,
+			"expansionPrompt": "Break down CI/CD pipeline into: 1) Creating .github/workflows/ci.yml with parallel lint, test-unit, test-integration, test-e2e jobs; 2) Creating .github/workflows/deploy.yml with Vercel deployment action; 3) Adding status badges to README and configuring branch protection. .github/instructions/ directory exists but no workflows yet.",
+			"reasoning": "No workflow files currently exist, but the task is well-documented with specific YAML configurations in the task details. GitHub Actions syntax is standard. The package.json already has all required test scripts. Lower complexity as this is configuration rather than code development."
+		}
+	]
+}
