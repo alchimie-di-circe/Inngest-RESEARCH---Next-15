@@ -10,7 +10,11 @@ declare global {
 }
 
 const prismaClientSingleton = () => {
-  const neon = new Pool({ connectionString: process.env.DATABASE_URL });
+  const connectionString = process.env.DATABASE_URL;
+  if (!connectionString) {
+    throw new Error('DATABASE_URL is required to initialize the database client');
+  }
+  const neon = new Pool({ connectionString });
   const adapter = new PrismaNeon(neon, { WebSocket: ws });
   return new PrismaClient({ adapter });
 };
