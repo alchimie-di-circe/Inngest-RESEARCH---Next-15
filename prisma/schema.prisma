@@ -72,7 +72,7 @@ model ResearchJob {
   jobBrief    String    @db.Text
   status      JobStatus @default(PENDING)
   jobResult   Json?
-  brandConfig BrandConfig? @relation(fields: [brandConfigId], references: [id])
+  brandConfig BrandConfig? @relation(fields: [brandConfigId], references: [id], onDelete: SetNull)
   brandConfigId String?
 
   @@index([status])
