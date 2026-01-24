@@ -102,7 +102,7 @@ model ContentItem {
   platform    Platform
   publishDate DateTime?
   metadata    Json?
-  queue       PublishingQueue? @relation(fields: [publishingQueueId], references: [id])
+  queue       PublishingQueue? @relation(fields: [publishingQueueId], references: [id], onDelete: SetNull)
   publishingQueueId String?
 
   @@index([status])
