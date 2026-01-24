@@ -34,3 +34,100 @@ model AgentRun {
   @@index([status])
   @@index([createdAt])
 }
+
+enum JobStatus {
+  PENDING
+  RUNNING
+  COMPLETED
+  FAILED
+}
+
+enum TabType {
+  DEEP
+  CONTEXT
+  CONTENT
+  PUBLISH
+}
+
+enum ContentStatus {
+  DRAFT
+  APPROVED
+  REJECTED
+  PUBLISHED
+}
+
+enum Platform {
+  BLOG
+  TWITTER
+  LINKEDIN
+  INSTAGRAM
+  SHOPIFY
+}
+
+model ResearchJob {
+  id          String    @id @default(cuid())
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  jobTitle    String
+  jobBrief    String    @db.Text
+  status      JobStatus @default(PENDING)
+  jobResult   Json?
+  brandConfig BrandConfig? @relation(fields: [brandConfigId], references: [id])
+  brandConfigId String?
+
+  @@index([status])
+  @@index([createdAt])
+}
+
+model BrandConfig {
+  id              String   @id @default(cuid())
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  brandName       String
+  brandDescription String  @db.Text
+  brandTone       String
+  brandKeywords   String[]
+  brandWebsite    String?
+  jobs            ResearchJob[]
+
+  @@index([brandName])
+}
+
+model ContentItem {
+  id          String        @id @default(cuid())
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+  content     String        @db.Text
+  status      ContentStatus @default(DRAFT)
+  platform    Platform
+  publishDate DateTime?
+  metadata    Json?
+  queue       PublishingQueue? @relation(fields: [publishingQueueId], references: [id])
+  publishingQueueId String?
+
+  @@index([status])
+  @@index([platform])
+}
+
+model PublishingQueue {
+  id          String        @id @default(cuid())
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+  items       ContentItem[]
+  publishDate DateTime
+  isPublished Boolean       @default(false)
+
+  @@index([publishDate])
+}
+
+model AgentAuditLog {
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  agentName String
+  action    String
+  details   Json?
+
+  @@index([agentName])
+  @@index([createdAt])
+}
