@@ -1,141 +1,138 @@
 # PRP-TASK-001: Extend Database Schema for Full Research Publishing Suite
 
 ## Goal
-Extend the existing Prisma schema to support the full Research Publishing Suite lifecycle, covering Deep Research, Context Research, Content Generation, and Publishing phases. This includes adding new models for `ResearchJob`, `BrandConfig`, `ContentItem`, `PublishingQueue`, and `AgentAuditLog`, along with necessary indexes and relations. We will also implement a robust `db.ts` client singleton for serverless efficiency with Neon.
+Extend the existing Prisma schema to support the full Research Publishing Suite lifecycle, covering Deep Research, Context Research, Content Generation, and Publishing phases. This includes adding new models for `ResearchJob`, `BrandConfig`, `ContentItem`, `PublishingQueue`, and `AgentAuditLog`. We will implement a robust `db.ts` client singleton using the **Neon Serverless Driver Adapter** for optimal connection management in Next.js Server Actions.
 
 ## Why
-- **Support Full Lifecycle**: The current schema is minimal (`ResearchContext`, `AgentRun`) and cannot support the complex 4-phase workflow defined in the PRD.
-- **Data Integrity**: Proper relations and foreign keys (e.g., `ResearchJob` -> `ContentItem`) ensure data consistency.
-- **Performance**: Targeted indexes (`@@index([status])`, etc.) are critical for the queue manager and real-time dashboard performance.
-- **Serverless Stability**: Implementing the Prisma Client singleton pattern is essential to prevent connection pool exhaustion in Next.js serverless/edge environments (Neon).
+- **Support Full Lifecycle**: The current schema is minimal and cannot support the complex 4-phase workflow defined in the PRD.
+- **Data Integrity**: Proper relations (Foreign Keys) and Enums ensure data consistency at the database level.
+- **Performance**: Targeted indexes (`@@index`) and the Neon Driver Adapter (WebSockets) reduce latency and prevent connection pool exhaustion in serverless environments.
+- **Type Safety**: Using Prisma Enums and explicit JSON type definitions prevents magic string errors.
 
 ## What
-1.  **Schema Update**: Add 5 new models to `prisma/schema.prisma`.
-2.  **Indexing**: Apply performance indexes for frequent query patterns.
-3.  **Client Singleton**: Create `src/lib/db.ts` with global caching for development HMR.
-4.  **Type Exports**: Export types for use in the application.
+1.  **Dependencies**: Install `@prisma/adapter-neon`, `@neondatabase/serverless`, and `ws`.
+2.  **Schema Update**: Add 5 new models with **Enums** for fixed states.
+3.  **Client Singleton**: Create `src/lib/db.ts` using the Driver Adapter pattern.
+4.  **Type Definitions**: Create `src/types/db.ts` for JSON field interfaces.
 
 ### Success Criteria
-- [ ] `prisma/schema.prisma` contains all 5 new models with correct fields and relations.
-- [ ] `npx prisma validate` passes without errors.
-- [ ] `src/lib/db.ts` exists and implements the singleton pattern correctly.
-- [ ] Integration tests verify CRUD operations for all new models.
-- [ ] `npx prisma db push --dry-run` shows the expected SQL changes.
+- [ ] `prisma/schema.prisma` contains 5 new models using native Enums.
+- [ ] `src/lib/db.ts` correctly initializes `PrismaClient` with the Neon adapter.
+- [ ] JSON fields (e.g., `parameters`, `reportData`) have corresponding TypeScript interfaces defined.
+- [ ] `npx prisma validate` passes.
+- [ ] `npx prisma db push --dry-run` shows correct SQL (including Enum creation).
 
 ## All Needed Context
 
 ### Documentation & References
 ```yaml
-# MUST READ - Include these in your context window
 - url: https://www.prisma.io/docs/orm/prisma-client/setup-and-configuration/databases-connections/serverless-drivers-drivers-adapters#neon
-  why: Best practices for connecting Prisma to Neon in serverless envs.
-
-- url: https://www.prisma.io/docs/orm/prisma-client/setup-and-configuration/databases-connections/connection-pooling
-  why: Understanding connection pooling with Neon (PgBouncer) vs Direct connection.
-
-- url: https://www.prisma.io/docs/orm/more/help-and-troubleshooting/help-articles/nextjs-prisma-client-dev-practices
-  why: The definitive guide on the singleton pattern for Next.js to avoid "Too many connections" errors during HMR.
-
-- file: .taskmaster/docs/prd.txt
-  why: Contains the source of truth for the data models and their fields (Capability 1-4).
+  why: Reference for configuring the Neon serverless driver adapter.
 
 - file: prisma/schema.prisma
-  why: Current schema state to be extended.
-```
-
-### Current Codebase tree
-```bash
-/Users/alexandthemusic/APP-VIBE/ZED_Inngest-APP/Inngest-RESEARCH---Next-15/
-├── prisma/
-│   └── schema.prisma
-├── src/
-│   └── lib/
-│       └── (db.ts does not exist yet)
+  why: Current schema state.
 ```
 
 ### Desired Codebase tree
 ```bash
 /Users/alexandthemusic/APP-VIBE/ZED_Inngest-APP/Inngest-RESEARCH---Next-15/
 ├── prisma/
-│   └── schema.prisma         # Updated with 5 new models
+│   └── schema.prisma         # Updated with models & enums
 ├── src/
-│   └── lib/
-│       └── db.ts             # New file: Prisma Singleton
-```
-
-### Known Gotchas & Library Quirks
-```python
-# CRITICAL: Connection Pooling with Neon
-# You must use the pooled connection string (with -pooler suffix) in DATABASE_URL for the application.
-# You must use the direct connection string in DIRECT_URL for migrations (prisma db push/migrate).
-# This is configured in .env, but the schema datasource should use `url = env("DATABASE_URL")`.
-
-# CRITICAL: Next.js HMR & Prisma
-# Instantiating `new PrismaClient()` in `db.ts` without the global variable check will cause 
-# connection exhaustion in dev mode because Next.js re-runs the file on every edit.
-# Pattern: `globalForPrisma.prisma ?? new PrismaClient()`
-
-# CRITICAL: Json Types
-# Prisma supports `Json` type for PostgreSQL. Ensure TypeScript interfaces for these JSON fields 
-# are defined in `src/types` (later task) or cast properly when using them. 
-# For now, `Json?` in schema is sufficient.
+│   ├── lib/
+│   │   └── db.ts             # Singleton with Neon Adapter
+│   └── types/
+│       └── db.ts             # JSON type definitions
 ```
 
 ## Implementation Blueprint
 
 ### Data models and structure
 
-**ResearchJob**: Tracks the state of a research session (Deep, Context, etc.).
-**BrandConfig**: Stores brand guidelines and assets.
-**ContentItem**: Represents a piece of content (Post, Article) generated from research.
-**PublishingQueue**: Manages the scheduling and publishing status of content items.
-**AgentAuditLog**: Logs agent actions for debugging and compliance.
+**Enums**:
+- `JobStatus`: PENDING, RUNNING, COMPLETED, FAILED
+- `TabType`: DEEP, CONTEXT, CONTENT, PUBLISH
+- `ContentStatus`: DRAFT, APPROVED, REJECTED, PUBLISHED
+- `Platform`: BLOG, TWITTER, LINKEDIN, INSTAGRAM, SHOPIFY
+
+**Models**: `ResearchJob`, `BrandConfig`, `ContentItem`, `PublishingQueue`, `AgentAuditLog` (as previously defined, but using Enums).
 
 ### List of tasks to be completed
 
 ```yaml
 Task 1:
-MODIFY prisma/schema.prisma:
-  - ADD model ResearchJob
-  - ADD model BrandConfig
-  - ADD model ContentItem
-  - ADD model PublishingQueue
-  - ADD model AgentAuditLog
-  - CONFIGURE relations and indexes
-  - PRESERVE existing ResearchContext and AgentRun models (optional, or deprecate)
+INSTALL Dependencies:
+  - RUN npm install @prisma/adapter-neon @neondatabase/serverless ws
+  - RUN npm install -D @types/ws
 
 Task 2:
-CREATE src/lib/db.ts:
-  - IMPLEMENT Singleton pattern
-  - EXPORT PrismaClient instance
-  - EXPORT Types from @prisma/client
+MODIFY prisma/schema.prisma:
+  - DEFINE enums (JobStatus, TabType, ContentStatus, Platform)
+  - ADD models using these enums
+  - CONFIGURE relations and indexes
 
 Task 3:
+CREATE src/types/db.ts:
+  - DEFINE interfaces for JSON fields (ResearchParameters, BrandKnowledge, etc.)
+
+Task 4:
+CREATE src/lib/db.ts:
+  - IMPLEMENT Singleton pattern with Neon Adapter
+  - EXPORT PrismaClient instance
+
+Task 5:
 VERIFY:
-  - RUN npx prisma validate
+  - RUN npx prisma generate
   - RUN npx prisma db push --dry-run
-  - CREATE integration test for schema
+  - CREATE integration test
 ```
 
 ### Per task pseudocode
 
-#### Task 1: Update Schema
+#### Task 2: Update Schema (with Enums)
 ```prisma
 // prisma/schema.prisma
 
-// ... existing generator and datasource ...
+enum JobStatus {
+  PENDING
+  RUNNING
+  COMPLETED
+  FAILED
+}
+
+enum TabType {
+  DEEP
+  CONTEXT
+  CONTENT
+  PUBLISH
+}
+
+enum ContentStatus {
+  DRAFT
+  APPROVED
+  REJECTED
+  PUBLISHED
+}
+
+enum Platform {
+  BLOG
+  TWITTER
+  LINKEDIN
+  INSTAGRAM
+  SHOPIFY
+}
 
 model ResearchJob {
   id           String        @id @default(cuid())
   topic        String
-  tabType      String        // 'deep', 'context', 'content', 'publish'
-  parameters   Json?         // Store depth, breadth, etc.
-  status       String        @default("pending") // pending, running, completed, failed
-  reportData   Json?         // The final output of the research
+  tabType      TabType
+  parameters   Json?         // Typed as ResearchParameters in app
+  status       JobStatus     @default(PENDING)
+  reportData   Json?         // The final output
   createdAt    DateTime      @default(now())
   completedAt  DateTime?
   createdBy    String?
-  contentItems ContentItem[] // Relation to content
+  contentItems ContentItem[]
 
   @@index([status])
   @@index([createdAt])
@@ -144,25 +141,22 @@ model ResearchJob {
 model BrandConfig {
   id             String   @id @default(cuid())
   name           String
-  tovGuidelines  String?  @db.Text // Tone of voice
+  tovGuidelines  String?  @db.Text
   brandKnowledge Json?
-  platformHistory Json?
   brandColors    Json?
   logoUrl        String?
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
-  createdBy      String?
 }
 
 model ContentItem {
   id            String           @id @default(cuid())
   researchJobId String
   researchJob   ResearchJob      @relation(fields: [researchJobId], references: [id], onDelete: Cascade)
-  contentType   String           // 'blog_post', 'social_post', 'carousel'
+  contentType   String           // Specific type like 'blog_post'
   copy          String?          @db.Text
-  designAssets  Json?
-  status        String           @default("draft") // draft, approved, rejected, published
-  platform      String           // 'blog', 'twitter', 'linkedin', 'instagram', 'multi'
+  status        ContentStatus    @default(DRAFT)
+  platform      Platform
   publishDate   DateTime?
   createdAt     DateTime         @default(now())
   updatedAt     DateTime         @updatedAt
@@ -175,16 +169,15 @@ model PublishingQueue {
   id            String      @id @default(cuid())
   contentItemId String
   contentItem   ContentItem @relation(fields: [contentItemId], references: [id], onDelete: Cascade)
-  platform      String
+  platform      Platform
   scheduledAt   DateTime?
   publishedAt   DateTime?
-  status        String      @default("pending") // pending, published, failed
+  status        String      @default("pending") // Keep string or make separate enum
   errorLog      String?     @db.Text
   retryCount    Int         @default(0)
   createdAt     DateTime    @default(now())
 
   @@index([status])
-  @@index([platform])
 }
 
 model AgentAuditLog {
@@ -201,95 +194,88 @@ model AgentAuditLog {
 }
 ```
 
-#### Task 2: DB Client Singleton
+#### Task 3: JSON Types
+```typescript
+// src/types/db.ts
+
+export interface ResearchParameters {
+  depth: number;
+  breadth: number;
+  focus?: string[];
+}
+
+export interface BrandKnowledge {
+  mission?: string;
+  values?: string[];
+  audience?: string;
+}
+
+export interface BrandColors {
+  primary: string;
+  secondary: string;
+  accent: string;
+}
+```
+
+#### Task 4: DB Client (Adapter Pattern)
 ```typescript
 // src/lib/db.ts
+import { Pool, neonConfig } from '@neondatabase/serverless';
+import { PrismaNeon } from '@prisma/adapter-neon';
 import { PrismaClient } from '@prisma/client';
+import ws from 'ws';
 
-// PATTERN: Global variable to hold instance during HMR
+// Sets up WebSocket connection for Neon serverless driver
+neonConfig.webSocketConstructor = ws;
+
+const connectionString = process.env.DATABASE_URL;
+
 const globalForPrisma = globalThis as unknown as {
   prisma: PrismaClient | undefined;
 };
 
-export const prisma = globalForPrisma.prisma ?? new PrismaClient({
-  log: process.env.NODE_ENV === 'development' ? ['query', 'error', 'warn'] : ['error'],
-});
+const pool = new Pool({ connectionString });
+const adapter = new PrismaNeon(pool);
+
+export const prisma =
+  globalForPrisma.prisma ??
+  new PrismaClient({
+    adapter,
+    log: process.env.NODE_ENV === 'development' ? ['query', 'error', 'warn'] : ['error'],
+  });
 
 if (process.env.NODE_ENV !== 'production') {
   globalForPrisma.prisma = prisma;
 }
 
-// Re-export types for convenience
-export type { ResearchJob, BrandConfig, ContentItem, PublishingQueue, AgentAuditLog } from '@prisma/client';
-
-// Define helper types matching schema enums/strings
-export type ResearchJobStatus = 'pending' | 'running' | 'completed' | 'failed';
-export type ContentStatus = 'draft' | 'approved' | 'rejected' | 'published';
+export * from '@prisma/client';
 ```
-
-### Integration Points
-**DATABASE**:
-- New tables will be created in Neon via `prisma db push`.
-- Indexes will be created for performance.
-
-**CONFIG**:
-- `DATABASE_URL` in `.env` must be set (already expected to be present).
 
 ## Validation Loop
 
-### Level 1: Syntax & Style
+### Level 1: Syntax & Config
 ```bash
+# Check dependencies
+npm list @prisma/adapter-neon
+
 # Validate Schema
 npx prisma validate
-
-# Check TS file
-npx tsc --noEmit src/lib/db.ts
 ```
 
-### Level 2: Unit/Integration Tests
-```typescript
-// tests/integration/db/schema.test.ts (Pseudo-test)
-import { prisma } from '@/lib/db';
-
-describe('Database Schema', () => {
-  it('should create a ResearchJob with ContentItems', async () => {
-    const job = await prisma.researchJob.create({
-      data: {
-        topic: 'Test Topic',
-        tabType: 'deep',
-        contentItems: {
-          create: {
-            contentType: 'blog_post',
-            platform: 'blog',
-            status: 'draft'
-          }
-        }
-      },
-      include: { contentItems: true }
-    });
-    
-    expect(job.id).toBeDefined();
-    expect(job.contentItems).toHaveLength(1);
-    
-    // Test Cascade Delete
-    await prisma.researchJob.delete({ where: { id: job.id } });
-    
-    const contentCheck = await prisma.contentItem.findUnique({ 
-      where: { id: job.contentItems[0].id } 
-    });
-    expect(contentCheck).toBeNull();
-  });
-});
-```
-
-### Level 3: Manual Verification
+### Level 2: DB Connection
 ```bash
-# Verify SQL generation
+# Push schema (dry-run first)
 npx prisma db push --dry-run
 ```
 
-## Final Validation Checklist
-- [ ] `npx prisma validate` returns "The schema is valid".
-- [ ] `src/lib/db.ts` compiles without errors.
-- [ ] `prisma db push --dry-run` shows correct `CREATE TABLE` and `CREATE INDEX` statements.
-- [ ] Integration tests pass confirming CRUD and Cascade behavior.
+### Level 3: Integration Test
+```typescript
+// tests/integration/db/connection.test.ts
+import { prisma } from '@/lib/db';
+
+describe('DB Connection', () => {
+  it('should connect using the adapter', async () => {
+    await expect(prisma.$queryRaw`SELECT 1`).resolves.toBeTruthy();
+  });
+});
+```
