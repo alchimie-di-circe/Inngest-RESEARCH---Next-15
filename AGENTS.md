@@ -32,16 +32,16 @@ Agent (You reading this):
     1. Check: Is this a unit test edit/write?
        → YES: Use Wallaby MCP (local IDE integration or cloud)
        → NO: Continue
-    
+
     2. Check: Is this an integration/E2E test?
        → YES: Use TestSprite MCP sandbox
        → NO: Continue
-    
+
     3. Check: Is this a feature implementation?
        → YES: Code in local IDE (Codespaces or devcontainer)
        → Then: Trigger TestSprite MCP for integration tests
        → Then: CI/CD runs full suite
-    
+
     4. Default: Never `npm test` locally. Always delegate.
 ```
 
@@ -49,14 +49,14 @@ Agent (You reading this):
 
 ## 🧪 TEST RUNNER MATRIX
 
-| Test Type | Runner | Where | Config File | When | Command |
-|-----------|--------|-------|-------------|------|---------|
-| **Unit** | Wallaby (MCP) | Local IDE or Cloud | `.mcp/wallaby-config.json` | On save | `wallaby watch` |
-| **Unit** (CI) | Jest | GitHub Actions | `jest.config.js` | On push | `npm test:ci` |
+| Test Type       | Runner         | Where              | Config File                   | When       | Command              |
+| --------------- | -------------- | ------------------ | ----------------------------- | ---------- | -------------------- |
+| **Unit**        | Wallaby (MCP)  | Local IDE or Cloud | `.mcp/wallaby-config.json`    | On save    | `wallaby watch`      |
+| **Unit** (CI)   | Jest           | GitHub Actions     | `jest.config.js`              | On push    | `npm test:ci`        |
 | **Integration** | TestSprite MCP | Sandbox (headless) | `.mcp/testsprite-config.json` | Pre-commit | `mcp run testsprite` |
-| **E2E** | TestSprite MCP | Sandbox + Docker | `.mcp/testsprite-config.json` | Pre-commit | `mcp run testsprite` |
-| **Performance** | GitHub Actions | Server | `.github/workflows/perf.yml` | On push | Auto |
-| **Build** | GitHub Actions | Server | `.github/workflows/build.yml` | On push | Auto |
+| **E2E**         | TestSprite MCP | Sandbox + Docker   | `.mcp/testsprite-config.json` | Pre-commit | `mcp run testsprite` |
+| **Performance** | GitHub Actions | Server             | `.github/workflows/perf.yml`  | On push    | Auto                 |
+| **Build**       | GitHub Actions | Server             | `.github/workflows/build.yml` | On push    | Auto                 |
 
 ---
 
@@ -65,6 +65,7 @@ Agent (You reading this):
 ### Scenario 1: Agent Implements a New Feature (Common)
 
 **Request to Agent**:
+
 ```
 "Implement deep-research-agent.ts with proper error handling and tests"
 ```
@@ -102,6 +103,7 @@ Step 4: Integration Test Creation (TestSprite MCP)
   └─ Status: Integration tests ✅ PASS
 
 Step 5: Pre-Commit Checklist
+  └─ ✅ Prettier formatting applied (npx prettier --write <files>)
   └─ ✅ Unit tests passing (Wallaby)
   └─ ✅ Integration tests passing (TestSprite)
   └─ ✅ TypeScript compilation succeeds
@@ -124,6 +126,7 @@ Step 7: CI/CD Verification (GitHub Actions - Automatic)
 ```
 
 **Key Points**:
+
 - Agent NEVER runs `npm test` locally
 - Wallaby MCP provides feedback in IDE (fast, watch mode)
 - TestSprite MCP sandbox isolated from Mac Air (network request)
@@ -134,13 +137,14 @@ Step 7: CI/CD Verification (GitHub Actions - Automatic)
 ### Scenario 2: Agent Debugs a Failing Test
 
 **Request to Agent**:
+
 ```
 "Integration test for context-research-agent is failing. Debug and fix."
 ```
 
 **Agent Execution Plan**:
 
-```yaml
+````yaml
 Step 1: Analyze Test Failure
   └─ Look at CI output: github.com/repo/actions/run/XXX
   └─ See error: "Cannot find brand_config table"
@@ -174,9 +178,10 @@ Step 5: Commit Fix
   └─ git commit -m "fix(tests): Add DB migration setup for integration tests"
   └─ git push
   └─ CI/CD re-runs automatically
-```
+````
 
 **Key Pattern**:
+
 - Agent identifies issue from CI logs (not local reproduction)
 - Agent fixes in IDE (edits test/setup files)
 - Agent uses TestSprite MCP to verify (not local npm test)
@@ -187,13 +192,14 @@ Step 5: Commit Fix
 ### Scenario 3: Agent MCP server implementation (in Codebase)
 
 **Request to Agent**:
+
 ```
 "i want to add Canva MCP server to one of our Agentkit agents to let him create design using Canva MCP server tools. After implementing test some real possible user requests to the agent to check if it works without problems with our API. "
 ```
 
 **Agent Execution Plan**:
 
-```yaml
+````yaml
 Step 1: Implement MCP Integration (Code)
   └─ File: src/inngest/canva-agent.ts
   └─ Pattern: AgentKit Pattern 6 (MCP integration)
@@ -230,9 +236,10 @@ Step 4: Verify in Integration Test (TestSprite MCP)
 Step 5: Commit
   └─ git add src/inngest/canva-agent.ts tests/
   └─ git commit -m "feat(Phase 3): Implement Canva design agent with MCP integration"
-```
+````
 
 **Key Tool Usage**:
+
 - **Wallaby MCP**: Fast unit test feedback (mocks)
 - **Dagger MCP**: Container sandboxes for real tool interaction
 - **TestSprite MCP**: Integration tests (DB + API mocks)
@@ -245,6 +252,7 @@ Step 5: Commit
 ### 1. TestSprite MCP Configuration
 
 **File: `.mcp/testsprite-config.json`**
+
 ```json
 {
   "name": "testsprite",
@@ -256,11 +264,7 @@ Step 5: Commit
     "DATABASE_URL": "postgresql://test:test@localhost:5432/research_suite_test",
     "NODE_ENV": "test"
   },
-  "capabilities": [
-    "test_execution",
-    "sandbox_management",
-    "parallel_runs"
-  ],
+  "capabilities": ["test_execution", "sandbox_management", "parallel_runs"],
   "options": {
     "timeout": 60000,
     "parallel_workers": 4,
@@ -270,6 +274,7 @@ Step 5: Commit
 ```
 
 **Available Commands**:
+
 ```bash
 # Run specific test file
 mcp invoke testsprite --test tests/integration/deep-research.test.ts
@@ -290,6 +295,7 @@ mcp invoke testsprite --report json --output testsprite-report.json
 ### 2. Wallaby MCP Configuration
 
 **File: `.mcp/wallaby-config.json`**
+
 ```json
 {
   "name": "wallaby",
@@ -300,11 +306,7 @@ mcp invoke testsprite --report json --output testsprite-report.json
     "NODE_ENV": "test",
     "WALLABY_PORT": "5555"
   },
-  "capabilities": [
-    "file_watcher",
-    "test_execution",
-    "coverage_reporting"
-  ],
+  "capabilities": ["file_watcher", "test_execution", "coverage_reporting"],
   "options": {
     "watch_mode": true,
     "auto_run": true,
@@ -314,6 +316,7 @@ mcp invoke testsprite --report json --output testsprite-report.json
 ```
 
 **IDE Integration** (VSCode):
+
 ```json
 // .vscode/settings.json
 {
@@ -324,6 +327,7 @@ mcp invoke testsprite --report json --output testsprite-report.json
 ```
 
 **Available Commands**:
+
 ```bash
 # Watch unit tests (IDE integrated)
 wallaby watch
@@ -341,17 +345,14 @@ wallaby debug --test deep-research-agent.test.ts
 ### 3. Dagger Container-Use MCP Configuration
 
 **File: `.mcp/container-use-config.json`**
+
 ```json
 {
   "name": "container-use",
   "type": "mcp-server",
   "command": "container-use",
   "args": ["--engine", "docker"],
-  "capabilities": [
-    "container_execution",
-    "mcp_tool_isolation",
-    "docker_socket"
-  ],
+  "capabilities": ["container_execution", "mcp_tool_isolation", "docker_socket"],
   "options": {
     "image": "node:20-alpine",
     "mounts": {
@@ -364,6 +365,7 @@ wallaby debug --test deep-research-agent.test.ts
 ```
 
 **Available Commands**:
+
 ```bash
 # Run test in container with MCP tools available
 mcp invoke container-use --test tests/e2e/canva-integration.test.ts
@@ -382,6 +384,7 @@ mcp invoke container-use --interactive --shell /bin/sh
 ### Phase 1: Deep Research (Agent Development)
 
 **Workflow**:
+
 ```bash
 # Development (you in IDE)
 1. Agent writes: src/inngest/deep-research-agent.ts
@@ -403,6 +406,7 @@ mcp invoke container-use --interactive --shell /bin/sh
 ```
 
 **Agent Commands Cheat Sheet**:
+
 ```bash
 # Development (watch unit tests)
 wallaby watch
@@ -491,23 +495,25 @@ mcp invoke testsprite --test tests/integration/deep-research.test.ts --debug --v
 
 ### Common Test Failures & Fixes
 
-| Failure | Cause | Fix | Who |
-|---------|-------|-----|-----|
-| `Cannot find DB table` | Migration not run | Add migration to test setup | Agent |
-| `Timeout: 5000ms` | Test too slow | Increase timeout or optimize | Agent + TestSprite |
-| `Mock not working` | Mock declared after import | Move mock before import | Agent |
-| `Port 3000 in use` | Dev server still running | Kill process or use different port | Agent |
-| `MCP connection failed` | TestSprite/Wallaby not started | Check `.mcp/` config + API key | Agent |
+| Failure                 | Cause                          | Fix                                | Who                |
+| ----------------------- | ------------------------------ | ---------------------------------- | ------------------ |
+| `Cannot find DB table`  | Migration not run              | Add migration to test setup        | Agent              |
+| `Timeout: 5000ms`       | Test too slow                  | Increase timeout or optimize       | Agent + TestSprite |
+| `Mock not working`      | Mock declared after import     | Move mock before import            | Agent              |
+| `Port 3000 in use`      | Dev server still running       | Kill process or use different port | Agent              |
+| `MCP connection failed` | TestSprite/Wallaby not started | Check `.mcp/` config + API key     | Agent              |
 
 ### Escalation to Human (Rare)
 
 **When to escalate**:
+
 - 🆘 MCP server infrastructure issue (can't connect)
 - 🆘 CI/CD system failure (GitHub Actions broken)
 - 🆘 Database corruption (Neon issues)
 - 🆘 Architectural design flaw (discovered during testing)
 
 **How to escalate**:
+
 ```bash
 # Save detailed logs
 mcp invoke testsprite --test tests/integration/failing.test.ts --debug --verbose > testsprite-debug.log
@@ -523,13 +529,13 @@ echo "Escalating to human team."
 
 ### Metrics Tracked (Automatic)
 
-| Metric | Tool | Target | Action |
-|--------|------|--------|--------|
-| Test Coverage | Jest coverage reports | 80%+ lines | PR blocked if < 80% |
-| Test Speed (unit) | Wallaby MCP | < 500ms | Wallaby highlights slow tests |
-| Test Speed (integration) | TestSprite MCP | < 10s each | TestSprite reports if > 10s |
-| Flaky Tests | CI/CD retries | 0 flaky tests | Disable & investigate |
-| Build Time | GitHub Actions | < 5 min | Alert if > 5 min |
+| Metric                   | Tool                  | Target        | Action                        |
+| ------------------------ | --------------------- | ------------- | ----------------------------- |
+| Test Coverage            | Jest coverage reports | 80%+ lines    | PR blocked if < 80%           |
+| Test Speed (unit)        | Wallaby MCP           | < 500ms       | Wallaby highlights slow tests |
+| Test Speed (integration) | TestSprite MCP        | < 10s each    | TestSprite reports if > 10s   |
+| Flaky Tests              | CI/CD retries         | 0 flaky tests | Disable & investigate         |
+| Build Time               | GitHub Actions        | < 5 min       | Alert if > 5 min              |
 
 ### Dashboard (Monitoring)
 
@@ -570,6 +576,7 @@ Before pushing to main:
   □ No flaky tests (retried, still pass)
 
 □ Code Quality
+  □ Prettier format applied: npx prettier --write <modified-files>
   □ npm run lint (no errors)
   □ npm run build (next.js builds successfully)
   □ No security warnings (npm audit)
@@ -602,7 +609,8 @@ mcp invoke testsprite --test tests/integration/FILE.test.ts   # Integration test
 mcp invoke testsprite --test tests/e2e/FILE.test.ts          # E2E test
 mcp invoke container-use --test tests/e2e/FILE.test.ts       # With MCP tools
 
-# Pre-Commit Verification
+# Pre-Commit Verification (MANDATORY ORDER)
+npx prettier --write <modified-files>  # Format code FIRST
 npm run lint                 # ESLint
 npx tsc --noEmit           # TypeScript check
 npm run test:ci            # Jest (all tests)
@@ -619,7 +627,7 @@ Testing Config:
   .mcp/testsprite-config.json      ← TestSprite MCP settings
   .mcp/wallaby-config.json         ← Wallaby MCP settings
   jest.config.js                   ← Jest configuration
-  
+
 Test Files:
   src/**/*.test.ts                 ← Unit tests (with code)
   tests/integration/               ← Integration tests
@@ -631,19 +639,21 @@ Test Files:
 ### Key Patterns
 
 **Mocking (Unit Tests)**:
+
 ```typescript
 jest.mock('@lib/db');
 const mockDb = db as jest.MockedObject<typeof db>;
 ```
 
 **Integration Tests (TestSprite)**:
+
 ```typescript
 describe('Feature', () => {
   beforeAll(async () => {
-    await runMigrations();  // Real DB
+    await runMigrations(); // Real DB
     await db.$connect();
   });
-  
+
   it('should work', async () => {
     // Real test against real DB
   });
@@ -651,6 +661,7 @@ describe('Feature', () => {
 ```
 
 **E2E Tests (TestSprite + Container)**:
+
 ```typescript
 describe('Full Workflow', () => {
   it('should complete Phase 1 → Phase 4', async () => {
@@ -673,11 +684,11 @@ describe('Full Workflow', () => {
 
 ## 📝 CHANGELOG
 
-| Date | Change | Impact |
-|------|--------|--------|
-| 2026-01-16 | Created AGENTS.md | Agent testing coordination established |
-| TBD | Add Wallaby cloud integration | Remove local Wallaby if cloud available |
-| TBD | Add TestSprite failure analysis | Auto-suggest fixes for common test failures |
+| Date       | Change                          | Impact                                      |
+| ---------- | ------------------------------- | ------------------------------------------- |
+| 2026-01-16 | Created AGENTS.md               | Agent testing coordination established      |
+| TBD        | Add Wallaby cloud integration   | Remove local Wallaby if cloud available     |
+| TBD        | Add TestSprite failure analysis | Auto-suggest fixes for common test failures |
 
 ---
 
