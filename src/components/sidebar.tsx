@@ -3,7 +3,13 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
-const navItems = [
+interface NavItem {
+  href: string;
+  label: string;
+  icon: string;
+}
+
+const navItems: NavItem[] = [
   { href: "/deep", label: "Deep Research", icon: "🔬" },
   { href: "/context", label: "Context Research", icon: "🧠" },
   { href: "/content", label: "Content Generation", icon: "✍️" },

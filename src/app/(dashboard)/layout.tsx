@@ -2,7 +2,11 @@ import type { ReactNode } from "react";
 
 import { Sidebar } from "@/components/sidebar";
 
-export default function DashboardLayout({ children }: { children: ReactNode }) {
+interface DashboardLayoutProps {
+  children: ReactNode;
+}
+
+export default function DashboardLayout({ children }: DashboardLayoutProps) {
   return (
     <div className="flex h-screen bg-slate-950">
       <Sidebar />
