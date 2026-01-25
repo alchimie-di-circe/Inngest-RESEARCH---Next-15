@@ -15,12 +15,12 @@ export const orchestrateMultiAgent = inngest.createFunction(
     concurrency: { limit: 50 },
     rateLimit: { limit: 100, period: '1m' },
     onFailure: async ({ event }) => {
-      const eventData = event.data as {
+      const originalEvent = event.data.event.data as {
         jobId?: string;
       };
-      if (eventData.jobId) {
+      if (originalEvent.jobId) {
         await db.researchJob.update({
-          where: { id: eventData.jobId },
+          where: { id: originalEvent.jobId },
           data: { status: 'FAILED' },
         });
       }
