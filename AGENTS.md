@@ -21,6 +21,105 @@ Test execution (ALWAYS delegated)  ← TestSprite MCP, Wallaby MCP, CI/CD
 
 ---
 
+## 🚫 LOCAL MACHINE RESTRICTIONS (Cloud-First Development)
+
+**This project is FULL CLOUD. The Mac Air is for code editing only.**
+
+### Development Environment: GitHub Codespace
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│  GitHub Codespace = Your Cloud Dev Machine                  │
+├─────────────────────────────────────────────────────────────┤
+│  ✅ npm install          → Runs in cloud, not on Mac       │
+│  ✅ npm run dev          → localhost:3000 forwarded        │
+│  ✅ npm run build        → Build in cloud                  │
+│  ✅ npx prisma migrate   → DB operations in cloud          │
+│  ✅ Full testing suite   → Jest, Playwright, etc.          │
+└─────────────────────────────────────────────────────────────┘
+```
+
+**How to start:**
+
+1. GitHub repo → Code → Codespaces → "New codespace"
+2. Wait for devcontainer setup (~2 min first time)
+3. In Codespace terminal: `npm install && npm run dev`
+4. Click forwarded port → Opens localhost:3000 in browser
+
+### Local Mac Air: Code Editing Only
+
+```bash
+# ✅ ALLOWED on Mac Air (lightweight, no install)
+git status / diff / commit / push   # Git operations
+npx prettier --write <files>        # Format (uses npx cache)
+npx tsc --noEmit                    # Type check only
+code . / cursor .                   # Open editor
+
+# ❌ NEVER on Mac Air (heavy operations)
+npm install       # → Use Codespace instead
+npm run build     # → Use Codespace instead
+npm run dev       # → Use Codespace instead
+docker compose up # → Use Codespace instead
+npx prisma migrate deploy  # → Use CI/CD or Codespace
+```
+
+### Agent Decision: "Should I run this locally?"
+
+```
+User/Task asks: "Run npm install", "Build the project", or "Start dev server"
+    ↓
+Agent Response:
+    "This project uses cloud-first development. I won't run npm install/build
+     on your Mac Air.
+
+     To test the app:
+     1. Open GitHub Codespace: gh codespace create -r <repo>
+     2. In Codespace terminal: npm install && npm run dev
+     3. Click the forwarded port link to open in browser
+
+     Need me to help with something else while you set up Codespace?"
+```
+
+### Recommended Workflow: Task → Branch → PR → Review
+
+```yaml
+Task assigned: 1. Create branch locally       → git checkout -b feat/task-xyz
+  2. Write code on Mac Air       → Edit files in VSCode/Cursor
+  3. Format & type-check         → npx prettier --write . && npx tsc --noEmit
+  4. Commit & push               → git commit -m "..." && git push
+
+Testing (Pre-PR): 5. Open GitHub Codespace       → Test app locally in cloud
+  6. npm install && npm run dev  → Verify feature works
+  7. Run integration tests       → Use TestSprite MCP in Codespace
+
+PR & Review: 8. Create PR                   → gh pr create
+  9. Reviewer opens Codespace    → Tests in their cloud env
+  10. Review → Approve
+  11. Merge                      → Squash & merge to main
+```
+
+### Future: Vercel Preview (Optional Enhancement)
+
+When ready (after stable main branch), add Vercel for automatic PR previews:
+
+```
+User pushes branch
+    ↓
+Vercel auto-builds & deploys preview
+    ↓
+PR comment: "Preview: https://inngest-research-feat-xyz.vercel.app"
+    ↓
+Reviewers click link instead of opening Codespace
+```
+
+**Setup when needed:**
+
+- `vercel link` in Codespace
+- Configure env vars in Vercel Dashboard
+- All subsequent pushes auto-deploy
+
+---
+
 ## 🔍 AGENT DECISION TREE
 
 When Droid/Claude Code/Kilocode receives a development request:
@@ -684,14 +783,16 @@ describe('Full Workflow', () => {
 
 ## 📝 CHANGELOG
 
-| Date       | Change                          | Impact                                      |
-| ---------- | ------------------------------- | ------------------------------------------- |
-| 2026-01-16 | Created AGENTS.md               | Agent testing coordination established      |
-| TBD        | Add Wallaby cloud integration   | Remove local Wallaby if cloud available     |
-| TBD        | Add TestSprite failure analysis | Auto-suggest fixes for common test failures |
+| Date       | Change                                    | Impact                                      |
+| ---------- | ----------------------------------------- | ------------------------------------------- |
+| 2026-01-25 | Add LOCAL MACHINE RESTRICTIONS section    | Cloud-first dev rules + Codespace workflow  |
+| 2026-01-16 | Created AGENTS.md                         | Agent testing coordination established      |
+| TBD        | Add Wallaby cloud integration             | Remove local Wallaby if cloud available     |
+| TBD        | Add TestSprite failure analysis           | Auto-suggest fixes for common test failures |
+| TBD        | Add Vercel Preview deployment integration | Auto-deploy PR previews (post-MVP)          |
 
 ---
 
 **This file is the source of truth for AI agent testing workflows.**  
-**Last Updated**: January 16, 2026  
+**Last Updated**: January 25, 2026  
 **Status**: Production-Ready for Implementation
