@@ -25,19 +25,27 @@ jobs:
       id-token: write
       actions: read # Required for Claude to read CI results on PRs
     steps:
-      - name: Get PR branch (for issue comments on PRs)
-        if: github.event.issue.pull_request
-        id: pr-branch
+      - name: Determine checkout ref
+        id: checkout-ref
         run: |
-          PR_HEAD=$(gh pr view ${{ github.event.issue.number }} --json headRefName -q '.headRefName')
-          echo "ref=$PR_HEAD" >> $GITHUB_OUTPUT
+          # For pull_request_review and pull_request_review_comment, use github.head_ref
+          if [[ "${{ github.event_name }}" == "pull_request_review" || "${{ github.event_name }}" == "pull_request_review_comment" ]]; then
+            echo "ref=${{ github.head_ref }}" >> $GITHUB_OUTPUT
+          # For issue_comment on a PR, fetch the PR head ref via API
+          elif [[ "${{ github.event_name }}" == "issue_comment" && -n "${{ github.event.issue.pull_request }}" ]]; then
+            PR_HEAD=$(gh pr view ${{ github.event.issue.number }} --json headRefName -q '.headRefName')
+            echo "ref=$PR_HEAD" >> $GITHUB_OUTPUT
+          # For issues or issue_comment not on a PR, use default ref
+          else
+            echo "ref=${{ github.ref }}" >> $GITHUB_OUTPUT
+          fi
         env:
           GH_TOKEN: ${{ github.token }}
 
       - name: Checkout repository
         uses: actions/checkout@v4
         with:
-          ref: ${{ steps.pr-branch.outputs.ref || github.ref }}
+          ref: ${{ steps.checkout-ref.outputs.ref }}
           fetch-depth: 1
 
       - name: Run Claude Code
