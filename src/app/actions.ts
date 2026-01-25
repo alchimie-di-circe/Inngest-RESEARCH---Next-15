@@ -4,9 +4,13 @@ import { inngest } from '@/inngest/client';
 import { researchChannel } from '@/inngest/channels';
 import { getSubscriptionToken } from '@inngest/realtime';
 import { db } from '@/lib/db';
+import { getCurrentUserId } from '@/lib/auth';
 
-export async function submitResearchQuery(query: string, sessionId: string, userId: string) {
+export async function submitResearchQuery(query: string, sessionId: string) {
   try {
+    // Get user ID from server-side authentication context
+    const userId = await getCurrentUserId();
+
     // Create a ResearchJob entry in the database
     const job = await db.researchJob.create({
       data: {

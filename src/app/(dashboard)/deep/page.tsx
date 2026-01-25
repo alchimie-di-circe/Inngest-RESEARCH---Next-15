@@ -47,10 +47,9 @@ export default function DeepResearchPage() {
     setSubmitted(false);
 
     const newSessionId = crypto.randomUUID();
-    const userId = 'demo-user';
 
     try {
-      const result = await submitResearchQuery(query, newSessionId, userId);
+      const result = await submitResearchQuery(query, newSessionId);
       if (controller.signal.aborted) return;
 
       if (!result.success) {
