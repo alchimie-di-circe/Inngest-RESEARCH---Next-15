@@ -12,7 +12,15 @@ export default function DeepResearchPage() {
   const [sessionId, setSessionId] = useState<string | null>(null);
   const [currentQuery, setCurrentQuery] = useState<string>('');
 
+  const abortControllerRef = useRef<AbortController | null>(null);
+
   const handleSubmit = async (query: string) => {
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+    }
+    const controller = new AbortController();
+    abortControllerRef.current = controller;
+
     setLoading(true);
     setError(null);
     setSubmitted(false);
@@ -22,6 +30,8 @@ export default function DeepResearchPage() {
 
     try {
       const result = await submitResearchQuery(query, newSessionId, userId);
+      if (controller.signal.aborted) return;
+
       if (!result.success) {
         throw new Error(result.error || 'Failed to submit query');
       }
@@ -29,10 +39,18 @@ export default function DeepResearchPage() {
       setSessionId(newSessionId);
       setSubmitted(true);
     } catch (err) {
+      if (err instanceof Error && err.name === 'AbortError') {
+        console.log('Query submission was aborted.');
+        return;
+      }
+      if (controller.signal.aborted) return;
       console.error('Error submitting query:', err);
       setError('Failed to submit query. Make sure the Inngest Dev Server is running.');
     } finally {
-      setLoading(false);
+      if (!controller.signal.aborted) {
+        setLoading(false);
+        abortControllerRef.current = null;
+      }
     }
   };
 
