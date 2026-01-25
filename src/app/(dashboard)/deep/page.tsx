@@ -1,9 +1,17 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { QueryForm } from '@/components/QueryForm';
 import { RealtimeResearchStatus } from '@/components/RealtimeResearchStatus';
-import { submitResearchQuery } from '@/app/actions';
+import { submitResearchQuery, getRecentResearchJobs } from '@/app/actions';
+
+interface RecentJob {
+  id: string;
+  jobTitle: string;
+  status: string;
+  createdAt: Date;
+  updatedAt: Date;
+}
 
 export default function DeepResearchPage() {
   const [loading, setLoading] = useState(false);
@@ -11,6 +19,19 @@ export default function DeepResearchPage() {
   const [error, setError] = useState<string | null>(null);
   const [sessionId, setSessionId] = useState<string | null>(null);
   const [currentQuery, setCurrentQuery] = useState<string>('');
+  const [recentJobs, setRecentJobs] = useState<RecentJob[]>([]);
+  const [loadingJobs, setLoadingJobs] = useState(true);
+
+  useEffect(() => {
+    loadRecentJobs();
+  }, []);
+
+  const loadRecentJobs = async () => {
+    setLoadingJobs(true);
+    const jobs = await getRecentResearchJobs(5);
+    setRecentJobs(jobs as RecentJob[]);
+    setLoadingJobs(false);
+  };
 
   const abortControllerRef = useRef<AbortController | null>(null);
 
@@ -38,6 +59,7 @@ export default function DeepResearchPage() {
       setCurrentQuery(query);
       setSessionId(newSessionId);
       setSubmitted(true);
+      await loadRecentJobs();
     } catch (err) {
       if (err instanceof Error && err.name === 'AbortError') {
         console.log('Query submission was aborted.');
@@ -73,6 +95,42 @@ export default function DeepResearchPage() {
 
       {submitted && sessionId && currentQuery && (
         <RealtimeResearchStatus sessionId={sessionId} query={currentQuery} />
+      )}
+
+      {!loadingJobs && recentJobs.length > 0 && (
+        <div className="bg-slate-800 rounded-lg p-6 border border-slate-700">
+          <h3 className="text-lg font-bold text-white mb-4">Recent Jobs</h3>
+          <div className="space-y-2">
+            {recentJobs.map((job) => (
+              <div
+                key={job.id}
+                className="flex items-center justify-between p-3 bg-slate-900 rounded border border-slate-600"
+              >
+                <div className="flex-1">
+                  <p className="text-white font-medium truncate">{job.jobTitle}</p>
+                  <p className="text-sm text-slate-400">
+                    {new Date(job.createdAt).toLocaleString()}
+                  </p>
+                </div>
+                <div className="ml-4">
+                  <span
+                    className={`px-3 py-1 rounded text-xs font-semibold ${
+                      job.status === 'COMPLETED'
+                        ? 'bg-green-900/30 text-green-300'
+                        : job.status === 'RUNNING'
+                          ? 'bg-blue-900/30 text-blue-300'
+                          : job.status === 'FAILED'
+                            ? 'bg-red-900/30 text-red-300'
+                            : 'bg-yellow-900/30 text-yellow-300'
+                    }`}
+                  >
+                    {job.status}
+                  </span>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
       )}
 
       {!loading && !submitted && (
