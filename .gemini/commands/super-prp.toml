@@ -4,7 +4,7 @@ prompt = """
 
 ## Feature file: provided by the user in the command invocation prompt
 
-Generate a comprehensive PRP for creating context engineering templates for specific technology domains based on the detailed requirements in the taskmaster specific task file provided by the user for this operation/branch/step of our project. 
+Generate a comprehensive PRP for creating context engineering templates for specific technology domains based on the detailed requirements in the taskmaster specific task file provided by the user for this operation/branch/step of our project.
 
 **CRITICAL: Web search and documentation research is your best friend. Use it extensively throughout this process.**
 
@@ -18,8 +18,8 @@ Generate a comprehensive PRP for creating context engineering templates for spec
    - Identify the complexity of the prp.
 
 2. **Extensive Local (in repo) andWeb Research (CRITICAL)**
-   - As first thing analyze the codebase to find documentation/context/knowledge file and folders. Start searching from .taskmaster/docs , /docs folders. Analyze also AGENTS.md and README.md file in root to get quick context about the stack (so about web searches to do). 
-   - **Web search the target technology extensively** - this is essential also to verify/extend,  the infos contained in local documentation files, in order to have the best prp possible.
+   - As first thing analyze the codebase to find documentation/context/knowledge file and folders. Start searching from .taskmaster/docs , /docs folders. Analyze also AGENTS.md and README.md file in root to get quick context about the stack (so about web searches to do).
+   - **Web search the target technology extensively with Context7 extension + Exa extension tools** - this is essential also to verify/extend,  the infos contained in local documentation files, in order to have the best prp possible.
    - Study official documentation, APIs, and getting started guides
    - Research best practices and common architectural patterns
    - Find real-world implementation examples and tutorials
@@ -37,7 +37,7 @@ Generate a comprehensive PRP for creating context engineering templates for spec
    - Map discovered technology patterns to context engineering principles
    - Plan how to adapt the PRP framework for this specific technology
    - Design domain-specific validation requirements
-  
+
 
 ## PRP Generation
 
@@ -78,7 +78,7 @@ Based on web research findings:
 ls -la use-cases/{technology-name}/
 find use-cases/{technology-name}/ -name "*.md" | wc -l  # Should have all required files
 
-# Template Content Validation  
+# Template Content Validation
 grep -r "TODO\\|PLACEHOLDER" use-cases/{technology-name}/  # Should be empty
 grep -r "WEBSEARCH_NEEDED" use-cases/{technology-name}/  # Should be empty
 

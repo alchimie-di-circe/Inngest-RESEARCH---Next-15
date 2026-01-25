@@ -1,38 +1,78 @@
-import { inngest } from "../client";
-import { AgentResult, researchChannel } from "../channels";
-import { gatherContext } from "./gather-context";
-import { analystAgent } from "./agents/analyst-agent";
-import { summarizerAgent } from "./agents/summarizer-agent";
-import { factCheckerAgent } from "./agents/fact-checker-agent";
-import { classifierAgent } from "./agents/classifier-agent";
-import { synthesizerAgent } from "./agents/synthesizer-agent";
+import { inngest } from '../client';
+import { AgentResult, researchChannel } from '../channels';
+import { gatherContext } from './gather-context';
+import { analystAgent } from './agents/analyst-agent';
+import { summarizerAgent } from './agents/summarizer-agent';
+import { factCheckerAgent } from './agents/fact-checker-agent';
+import { classifierAgent } from './agents/classifier-agent';
+import { synthesizerAgent } from './agents/synthesizer-agent';
+import { db } from '@/lib/db';
 
 export const orchestrateMultiAgent = inngest.createFunction(
   {
-    id: "orchestrate-multi-agent-research",
-    name: "Multi-Agent Research Orchestrator",
+    id: 'orchestrate-multi-agent-research',
+    name: 'Multi-Agent Research Orchestrator',
     concurrency: { limit: 50 },
-    rateLimit: { limit: 100, period: "1m" },
+    rateLimit: { limit: 100, period: '1m' },
+    onFailure: async ({ event }) => {
+      const originalEvent = event.data.event.data as {
+        jobId?: string;
+      };
+      if (originalEvent.jobId) {
+        await db.researchJob.update({
+          where: { id: originalEvent.jobId },
+          data: { status: 'FAILED' },
+        });
+      }
+    },
   },
-  { event: "research/query.submitted" },
+  { event: 'research/query.submitted' },
   async ({ event, step, publish }) => {
-    const { query, userId, sessionId } = event.data;
+    const { query, userId, sessionId, jobId } = event.data as {
+      query: string;
+      userId: string;
+      sessionId: string;
+      jobId?: string;
+    };
 
-    // Step 1: Gather context from multiple sources (existing function)
-    await step.run("publish-orchestration-start", async () => {
+    // Step 1: Get or create ResearchJob in database
+    let job;
+    if (jobId) {
+      // Job was already created in server action, just fetch and update status
+      job = await step.run('fetch-research-job', async () => {
+        return db.researchJob.update({
+          where: { id: jobId },
+          data: { status: 'RUNNING' },
+        });
+      });
+    } else {
+      // Fallback: create job if not already created
+      job = await step.run('create-research-job', async () => {
+        return db.researchJob.create({
+          data: {
+            jobTitle: query,
+            jobBrief: `Research query: ${query}`,
+            status: 'RUNNING',
+          },
+        });
+      });
+    }
+
+    // Publish orchestration start
+    await step.run('publish-orchestration-start', async () => {
       await publish(
         researchChannel(sessionId).progress({
-          step: "orchestration",
-          status: "starting",
-          message: "Starting multi-agent research orchestration",
+          step: 'orchestration',
+          status: 'starting',
+          message: 'Starting multi-agent research orchestration',
           timestamp: new Date().toISOString(),
-          metadata: { agents: 4, finalSynthesis: true },
+          metadata: { agents: 4, finalSynthesis: true, jobId: job.id },
         })
       );
     });
 
     // Gather context (keep existing logic)
-    const contextResult = await step.invoke("gather-context", {
+    const contextResult = await step.invoke('gather-context', {
       function: gatherContext,
       data: { query, userId, sessionId },
     });
@@ -41,12 +81,11 @@ export const orchestrateMultiAgent = inngest.createFunction(
 
     if (!topContexts || topContexts.length === 0) {
       // No context found - return early
-      await step.run("publish-no-context-result", async () => {
+      await step.run('publish-no-context-result', async () => {
         await publish(
           researchChannel(sessionId).result({
-            answer:
-              "No context found for the given query. Please try a different search term.",
-            model: "none",
+            answer: 'No context found for the given query. Please try a different search term.',
+            model: 'none',
             tokensUsed: 0,
             contextsUsed: 0,
             timestamp: new Date().toISOString(),
@@ -58,17 +97,17 @@ export const orchestrateMultiAgent = inngest.createFunction(
     }
 
     // Step 2: FAN-OUT - Dispatch to multiple agents in parallel
-    await step.run("publish-fan-out", async () => {
+    await step.run('publish-fan-out', async () => {
       await publish(
         researchChannel(sessionId).metadata({
-          type: "info",
-          message: "Fanning out to 4 specialized AI agents in parallel",
+          type: 'info',
+          message: 'Fanning out to 4 specialized AI agents in parallel',
           details: {
             agents: [
-              "GPT-4 Analyst",
-              "Claude Summarizer",
-              "Gemini Fact-Checker",
-              "Mistral Classifier",
+              'GPT-4 Analyst',
+              'Claude Summarizer',
+              'Gemini Fact-Checker',
+              'Mistral Classifier',
             ],
             parallelExecution: true,
           },
@@ -79,7 +118,7 @@ export const orchestrateMultiAgent = inngest.createFunction(
 
     // Invoke all 4 agents in parallel
     const agentResults = (await Promise.all([
-      step.invoke("analyst-agent", {
+      step.invoke('analyst-agent', {
         function: analystAgent,
         data: {
           query,
@@ -88,7 +127,7 @@ export const orchestrateMultiAgent = inngest.createFunction(
           userId,
         },
       }),
-      step.invoke("summarizer-agent", {
+      step.invoke('summarizer-agent', {
         function: summarizerAgent,
         data: {
           query,
@@ -97,7 +136,7 @@ export const orchestrateMultiAgent = inngest.createFunction(
           userId,
         },
       }),
-      step.invoke("fact-checker-agent", {
+      step.invoke('fact-checker-agent', {
         function: factCheckerAgent,
         data: {
           query,
@@ -106,7 +145,7 @@ export const orchestrateMultiAgent = inngest.createFunction(
           userId,
         },
       }),
-      step.invoke("classifier-agent", {
+      step.invoke('classifier-agent', {
         function: classifierAgent,
         data: {
           query,
@@ -118,21 +157,21 @@ export const orchestrateMultiAgent = inngest.createFunction(
     ])) as Awaited<AgentResult[]>;
 
     // Step 3: FAN-IN - Synthesize all agent responses
-    await step.run("publish-fan-in", async () => {
+    await step.run('publish-fan-in', async () => {
       await publish(
         researchChannel(sessionId).metadata({
-          type: "info",
-          message: "All agents complete. Synthesizing results with GPT-4",
+          type: 'info',
+          message: 'All agents complete. Synthesizing results with GPT-4',
           details: {
             completedAgents: agentResults.length,
-            synthesisModel: "gpt-4-turbo-preview",
+            synthesisModel: 'gpt-4-turbo-preview',
           },
           timestamp: new Date().toISOString(),
         })
       );
     });
 
-    const synthesisResult = await step.invoke("synthesizer-agent", {
+    const synthesisResult = await step.invoke('synthesizer-agent', {
       function: synthesizerAgent,
       data: {
         query,
@@ -143,19 +182,19 @@ export const orchestrateMultiAgent = inngest.createFunction(
     });
 
     // Step 4: Publish final completion
-    await step.run("publish-orchestration-complete", async () => {
+    await step.run('publish-orchestration-complete', async () => {
       await publish(
         researchChannel(sessionId).progress({
-          step: "orchestration",
-          status: "completed",
-          message: "Multi-agent research orchestration complete",
+          step: 'orchestration',
+          status: 'completed',
+          message: 'Multi-agent research orchestration complete',
           timestamp: new Date().toISOString(),
         })
       );
     });
 
     // Publish final result
-    await step.run("publish-final-result", async () => {
+    await step.run('publish-final-result', async () => {
       await publish(
         researchChannel(sessionId).result({
           answer: synthesisResult.response,
@@ -165,6 +204,30 @@ export const orchestrateMultiAgent = inngest.createFunction(
           timestamp: new Date().toISOString(),
         })
       );
+    });
+
+    // Step 5: Save research results to database
+    await step.run('save-research-results', async () => {
+      await db.researchJob.update({
+        where: { id: job.id },
+        data: {
+          status: 'COMPLETED',
+          jobResult: {
+            answer: synthesisResult.response,
+            model: synthesisResult.model,
+            agentResults: agentResults.map((r) => ({
+              agent: r.agent,
+              model: r.model,
+              duration: r.duration,
+            })),
+            contextsUsed: topContexts.length,
+            synthesis: {
+              model: synthesisResult.model,
+              duration: synthesisResult.duration,
+            },
+          },
+        },
+      });
     });
 
     return {

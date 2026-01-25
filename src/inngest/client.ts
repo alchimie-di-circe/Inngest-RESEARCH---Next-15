@@ -1,7 +1,7 @@
-import { Inngest, EventSchemas } from "inngest";
-import { realtimeMiddleware } from "@inngest/realtime/middleware";
-import type { ContextItem } from "./types";
-import type { AgentResult } from "./channels";
+import { Inngest, EventSchemas } from 'inngest';
+import { realtimeMiddleware } from '@inngest/realtime/middleware';
+import type { ContextItem } from './types';
+import type { AgentResult } from './channels';
 
 interface AgentEventData {
   query: string;
@@ -11,17 +11,25 @@ interface AgentEventData {
 }
 
 export const inngest = new Inngest({
-  id: "context-engineering-demo",
+  id: 'context-engineering-demo',
   middleware: [realtimeMiddleware()],
   schemas: new EventSchemas().fromRecord<{
-    "research/query.submitted": {
+    'research/query.submitted': {
+      data: {
+        query: string;
+        userId: string;
+        sessionId: string;
+        jobId?: string;
+      };
+    };
+    'research/gather-context': {
       data: {
         query: string;
         userId: string;
         sessionId: string;
       };
     };
-    "context/llm.invoke": {
+    'context/llm.invoke': {
       data: {
         query: string;
         contexts: ContextItem[];
@@ -29,11 +37,11 @@ export const inngest = new Inngest({
         sessionId: string;
       };
     };
-    "agent/analyze": { data: AgentEventData };
-    "agent/classify": { data: AgentEventData };
-    "agent/summarize": { data: AgentEventData };
-    "agent/fact-check": { data: AgentEventData };
-    "agent/synthesize": {
+    'agent/analyze': { data: AgentEventData };
+    'agent/classify': { data: AgentEventData };
+    'agent/summarize': { data: AgentEventData };
+    'agent/fact-check': { data: AgentEventData };
+    'agent/synthesize': {
       data: {
         query: string;
         agentResults: AgentResult[];
