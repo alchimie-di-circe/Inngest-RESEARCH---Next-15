@@ -120,6 +120,43 @@ Reviewers click link instead of opening Codespace
 
 ---
 
+## 📦 Git Sparse-Checkout Configuration
+
+To avoid downloading heavy directories (like `node_modules/`) while keeping all project files (.claude, .taskmaster, .factory, etc.):
+
+```bash
+# Setup sparse-checkout (one-time, during initial clone)
+git sparse-checkout init --cone
+git sparse-checkout set --no-cone '*' '!node_modules'
+
+# Verify configuration
+git sparse-checkout list
+# Should show:
+#   *
+#   !node_modules
+```
+
+**Why sparse-checkout?**
+
+- **Saves disk space**: Excludes `node_modules/` (884MB+) from local checkout
+- **Keeps all configs**: ALL project files visible (.claude, .taskmaster, .factory, .gemini, .codex, docs, etc.)
+- **Git still tracks everything**: Just doesn't materialize node_modules locally (it's in .gitignore anyway)
+- **Cloud-first aligned**: You install packages in Codespace, not locally
+
+**What gets checked out:**
+
+```
+✅ Visible (checkout):
+   .claude, .codex, .factory, .gemini, .taskmaster
+   src, prisma, public, scripts, docs, e2e, tests
+   .devcontainer, .github, .env.example, package.json, etc.
+
+❌ NOT visible (excluded):
+   node_modules/ (won't be downloaded)
+```
+
+---
+
 ## 🔍 AGENT DECISION TREE
 
 When Droid/Claude Code/Kilocode receives a development request:
