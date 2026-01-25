@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { QueryForm } from '@/components/QueryForm';
 import { RealtimeResearchStatus } from '@/components/RealtimeResearchStatus';
 import { submitResearchQuery, getRecentResearchJobs } from '@/app/actions';
@@ -23,7 +23,7 @@ export default function DeepResearchPage() {
   const [loadingJobs, setLoadingJobs] = useState(true);
 
   useEffect(() => {
-    loadRecentJobs();
+    void loadRecentJobs();
   }, []);
 
   const loadRecentJobs = async () => {
