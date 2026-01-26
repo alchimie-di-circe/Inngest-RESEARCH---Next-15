@@ -28,9 +28,9 @@ jobs:
       - name: Determine checkout ref
         id: checkout-ref
         run: |
-          # For pull_request_review and pull_request_review_comment, use head_ref
+          # For pull_request_review and pull_request_review_comment, use PR head ref
           if [[ "$EVENT_NAME" == "pull_request_review" || "$EVENT_NAME" == "pull_request_review_comment" ]]; then
-            printf 'ref=%s\n' "$HEAD_REF" >> "$GITHUB_OUTPUT"
+            printf 'ref=%s\n' "$PR_HEAD_REF" >> "$GITHUB_OUTPUT"
           # For issue_comment on a PR, fetch the PR head ref via API
           elif [[ "$EVENT_NAME" == "issue_comment" && -n "$IS_PR" ]]; then
             PR_HEAD=$(gh pr view "$ISSUE_NUMBER" --json headRefName -q '.headRefName')
@@ -42,7 +42,7 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
           EVENT_NAME: ${{ github.event_name }}
-          HEAD_REF: ${{ github.head_ref }}
+          PR_HEAD_REF: ${{ github.event.pull_request.head.ref }}
           DEFAULT_REF: ${{ github.ref }}
           IS_PR: ${{ github.event.issue.pull_request }}
           ISSUE_NUMBER: ${{ github.event.issue.number }}
