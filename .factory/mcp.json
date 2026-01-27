@@ -32,12 +32,6 @@
         "AZURE_OPENAI_API_KEY": "op://AI DEV/AZURE_OPENAI_API_KEY/credential",
         "OLLAMA_API_KEY": "op://AI DEV/OLLAMA_API_KEY/credential"
       }
-    },
-    "sequential-thinking": {
-      "type": "stdio",
-      "command": "npx",
-      "args": ["-y", "@modelcontextprotocol/server-sequential-thinking"],
-      "env": {}
     }
   }
 }
