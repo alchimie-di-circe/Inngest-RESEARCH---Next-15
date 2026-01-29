@@ -14,7 +14,7 @@
 ```
 ┌─────────────────────────────────────────────────────────────┐
 │  LOCAL (Mac Air - PROTECTED)                                │
-│  ✅ Dagger container-use CLI  → Isolated test sandboxes     │
+│  ✅ Container-Use MCP         → Full dev in containers      │
 │  ✅ TestSprite MCP            → Integration/E2E tests       │
 │  ❌ NO npm install/build/test locally                       │
 ├─────────────────────────────────────────────────────────────┤
@@ -37,9 +37,9 @@
 
 | Test Type | Environment | Tool | How to Use | Documentation |
 |-----------|-------------|------|------------|---------------|
+| **Full Development (TaskMaster)** | Local Container | **Container-Use MCP** | Agent develops → tests → imports to feature branch → TestSprite | [.factory/rules/](/.factory/rules/) |
 | **Unit Tests** | Cloud (Codespace) | **Wallaby MCP** | User runs `Wallaby: Start` in VS Code, then agent uses MCP tools | [docs/mcp-server-instructions/wallaby-mcp-guide.md](docs/mcp-server-instructions/wallaby-mcp-guide.md) |
 | **Integration Tests** | Local Sandbox | **TestSprite MCP** | `testsprite_bootstrap_tests` → `testsprite_run_tests` | [docs/mcp-server-instructions/testsprite-mcp-guide.md](docs/mcp-server-instructions/testsprite-mcp-guide.md) |
-| **E2E with Real APIs** | Local Container | **Dagger Container-use** | `container-use checkout {id}` CLI commands | [docs/mcp-server-instructions/dagger-container-use.md](docs/mcp-server-instructions/dagger-container-use.md) |
 | **Frontend Debugging** | Cloud | **Chrome DevTools MCP** | MCP tools for DOM, console, network | [docs/mcp-server-instructions/chrome-devtools-mcp-guide.md](docs/mcp-server-instructions/chrome-devtools-mcp-guide.md) |
 | **Inngest Functions** | Cloud | **Inngest DevServer MCP** | `send_event`, `invoke_function`, `poll_run_status` | [docs/inngest/dev-workflow.md](docs/inngest/dev-workflow.md) |
 | **Unit Tests (CI)** | CI/CD | **Jest** | `npm run test:ci` | jest.config.js |
@@ -125,6 +125,203 @@ Both droids leverage Neon's branching for safe, isolated testing before applying
 
 ---
 
+## 🐳 Container-Use Development Workflow
+
+**Alternative Development Mode**: Full implementation and testing in isolated Dagger containers instead of Codespace.
+
+> **Reference Rules**: See [.factory/rules/](/.factory/rules/) for complete container-use documentation:
+> - [QUICKSTART](/.factory/rules/rule-mcp-container-use-QUICKSTART.md) - Getting started with containers
+> - [Environment Workflows](/.factory/rules/rule-mcp-container-use_environmente-workflows.md) - Full workflow patterns
+> - [CLI Reference](/.factory/rules/rule-mcp-container-use_cli-ref-official.md) - All commands
+> - [Environment Config](/.factory/rules/rule-mcp-container-use_environmente-config.md) - Setup & configuration
+> - [1Password Secrets](/.factory/rules/rule-mcp-container-use-secret-1password-management.md) - Secure secret management
+
+### When to Use Container-Use vs Codespace
+
+| Scenario | Container-Use | Codespace |
+|----------|---------------|-----------|
+| TaskMaster task implementation | ✅ Preferred | ✅ Alternative |
+| Parallel task waves (e.g., T3+T4+T14) | ✅ Best (multiple isolated containers) | ❌ Single instance |
+| Quick prototyping | ✅ Disposable sandboxes | ✅ Persistent environment |
+| CI-like isolation | ✅ Full isolation per task | ❌ Shared state |
+| Long running sessions | ❌ Ephemeral containers | ✅ Persistent |
+
+### Container Development Workflow for TaskMaster Tasks
+
+**Phase 1: Container Development (Droid in Container-Use)**
+
+```
+1. User Request
+   └─ "Implement Task 3" or "Execute wave T3+T4+T14"
+
+2. Droid Creates Container(s)
+   ├─ Single task → 1 container
+   └─ Wave/parallel → N containers (example: 3 parallel for comparison)
+
+3. In Each Container
+   ├─ npm install (dependencies)
+   ├─ Develop code following TaskMaster task requirements
+   ├─ npm run build (verify compilation)
+   ├─ npm test (run all tests in container)
+   └─ Notify user: ✅ GREEN or ❌ RED
+
+4. If Tests FAIL
+   └─ Droid iterates in container or notifies user for guidance
+
+5. If Tests PASS
+   └─ Container development complete, ready for import phase
+```
+
+**Phase 2: Import & Pre-PR Validation (Mac Air - Local)**
+
+```
+6. Review Changes (User)
+   └─ container-use diff {id}    # See what changed
+   └─ container-use log {id}     # See commit history
+   └─ container-use terminal {id} # (Optional) Debug in container
+
+7. Import to Feature Branch (User)
+   ├─ git checkout -b feat/task-3   # Create feature branch FIRST
+   ├─ container-use merge {id}      # Preserve commit history
+   └─ (or container-use apply {id}) # Staged changes for custom commit
+
+8. For Parallel Waves
+   ├─ Wait ALL containers to complete ✅
+   ├─ Import all containers in sequence to same feature branch
+   └─ (container-use never merges to main directly!)
+
+9. TestSprite Bootstrap (Pre-PR Test)
+   ├─ testsprite_bootstrap_tests    # Unit + integration tests
+   └─ Catches any missed tests from containers
+
+10. If TestSprite PASSES ✅
+    └─ Open PR with complete implementation
+
+11. If TestSprite FAILS ❌
+    ├─ Fix locally and re-commit, OR
+    └─ Re-delegate to container for fixes
+```
+
+### Parallel Container Strategy (TaskMaster Waves)
+
+For complex waves like **Phase 2: T3+T4+T14**:
+
+```
+CONTAINER 1: brand-config-alpha
+├─ Task 3: Brand Configuration Management
+├─ Develops API routes + UI components
+└─ Tests independently
+
+CONTAINER 2: deep-research-beta
+├─ Task 4: Deep Research Agent Refactor
+├─ Develops research pipeline
+└─ Tests independently
+
+CONTAINER 3: api-routes-gamma
+├─ Task 14: API Routes & Structure
+├─ Develops REST endpoints
+└─ Tests independently
+
+Synchronization:
+  container 1 ✅ → import
+  container 2 ✅ → import  
+  container 3 ✅ → import
+  all imported → TestSprite unified test
+  tests ✅ → single PR for entire wave
+```
+
+**Workflow for Parallel Containers**:
+1. Droid creates N containers simultaneously
+2. Each container develops + tests independently
+3. Monitor with `container-use watch` and `container-use log {id}`
+4. ALL containers must pass before import phase
+5. Import all in sequence to same `feat/wave-*` branch
+6. Run TestSprite once with ALL changes combined
+7. Open single PR for entire wave
+
+### Updated Agent Decision Tree
+
+```
+Request: "Implement TaskMaster Task X" or "Execute Wave Y"
+    ↓
+Agent checks: Container-Use MCP available?
+    ├─ YES → Container Development Workflow
+    │        1. Create container(s) → develop → test
+    │        2. Notify user when complete
+    │        3. User reviews with container-use commands
+    │        4. User imports to feature branch
+    │        5. TestSprite pre-PR validation
+    │        6. Open PR
+    │
+    └─ NO → Fallback to Codespace Workflow
+             1. Instruct user to open Codespace
+             2. Develop code there
+             3. TestSprite validation
+             4. Open PR
+```
+
+### Container-Use Commands Quick Reference
+
+```bash
+# Monitor & Review (User on Mac Air)
+container-use list                    # See all active containers
+container-use watch                   # Real-time progress monitoring
+container-use log {id}                # What did Droid do? (commit history)
+container-use log {id} --patch        # Show detailed code changes
+container-use diff {id}               # Quick code review
+container-use terminal {id}           # (Debug) Enter container if needed
+
+# Import to Feature Branch (User on Mac Air)
+git checkout -b feat/task-3           # CRITICAL: Feature branch first!
+container-use merge {id}              # Option 1: Preserve commit history
+# OR
+container-use apply {id}              # Option 2: Stage for custom commit
+git commit -m "custom message"
+
+# Cleanup (Optional - User on Mac Air)
+container-use delete {id}             # Remove one container
+container-use delete --all            # Remove all containers
+```
+
+### Pre-PR Checklist (Container Workflow)
+
+```yaml
+□ Container Development Phase
+  □ All containers completed successfully
+  □ Tests pass ✅ in container(s)
+  □ Droid notified user of completion
+
+□ Import & Feature Branch Phase
+  □ Created feature branch (NOT main!)
+  □ Used container-use merge or apply
+  □ All wave containers imported (if parallel)
+  □ No untracked files in branch
+
+□ Pre-PR Validation
+  □ TestSprite bootstrap: testsprite_bootstrap_tests
+  □ TestSprite full: testsprite_run_tests
+  □ All tests pass (unit + integration + E2E)
+  □ No console.log() or debug code
+  □ Prettier formatted: npx prettier --write
+
+□ PR Ready
+  □ Descriptive PR title (e.g., "feat: Implement Task 3 - Brand Config Management")
+  □ PR references TaskMaster task(s)
+  □ No sensitive data in commits
+  □ Ready for code review
+```
+
+### Important Container Rules
+
+1. **NEVER merge containers directly to main** - Always use feature branches first
+2. **Wait for ALL containers** in a wave before importing
+3. **TestSprite is MANDATORY** before opening PR - Critical safety check
+4. **User approval required** before import - Droid notifies, waits for user decision
+5. **Secrets via 1Password** - Containers use `op://` refs, never expose raw values
+6. **Cleanup containers** after merge - `container-use delete {id}` to save resources
+
+---
+
 ## 🔧 Inngest Development Workflow
 
 **Quick Reference** - See [docs/inngest/dev-workflow.md](docs/inngest/dev-workflow.md) for complete guide.
@@ -201,6 +398,7 @@ Agent:
 ## 🔗 Cross-References
 
 - **Project Context**: [.claude/CLAUDE.md](.claude/CLAUDE.md)
+- **Container-Use Rules**: [.factory/rules/](/.factory/rules/) - Complete container development guide
 - **Inngest Workflow**: [docs/inngest/dev-workflow.md](docs/inngest/dev-workflow.md)
 - **MCP Guides**: [docs/mcp-server-instructions/](docs/mcp-server-instructions/)
 - **Quick Start**: [QUICKSTART.md](QUICKSTART.md)
