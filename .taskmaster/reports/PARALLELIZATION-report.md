@@ -191,7 +191,7 @@ All complete ✅ → Merge all 4 to feat/phase2-core → Single PR
 | **Design** | **Task 8** (Canva MCP) | T3 ✅, T7 ✅ | 7/10 | MCP integration for automated design creation. Brand guideline alignment. |
 | **Publishing** | **Task 9** (Multi-Channel Pub) | T7 ✅, T6 ✅ | 8/10 | Platform-specific publishers (Shopify, Twitter, LinkedIn, Instagram). Highest complexity. |
 | **Publishing** | **Task 10** (Queue Manager) | T9 ✅, T1 ✅ | 6/10 | Exponential backoff, retry logic, audit logging. Depends on T9. |
-| **Realtime** | **Task 13** (Streaming) | All Core Tasks ✅ | 5/10 | Unified progress tracking across all 4 phases. Phase-specific realtime topics. |
+| **Realtime** | **Task 13** (Streaming) | All Core Tasks ✅ | 5/10 | Unified progress tracking using **Native Inngest Realtime** (Dev Preview). Phase-specific topics. |
 | **DevOps** | **Task 15** (CI/CD) | T12 ✅ | 4/10 | GitHub Actions CI/CD pipeline. Parallel test execution. Can start after Phase 2. |
 
 ## ⏱️ Complexity & Resource Allocation

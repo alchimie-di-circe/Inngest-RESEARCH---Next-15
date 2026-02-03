@@ -1,0 +1,20 @@
+{
+  "workdir": "/workdir",
+  "base_image": "node:20-slim",
+  "setup_commands": [
+    "apt-get update && apt-get install -y git openssl"
+  ],
+  "install_commands": [
+    "npm install",
+    "npm install inngest @inngest/agent-kit",
+    "npx prisma generate"
+  ],
+  "env": [
+    "NODE_ENV=development"
+  ],
+  "secrets": [
+    "INNGEST_EVENT_KEY=op://AI DEV/Inngest-Dev/event-key",
+    "INNGEST_SIGNING_KEY=op://AI DEV/Inngest-Dev/signing-key",
+    "DATABASE_URL=env://DATABASE_URL"
+  ]
+}

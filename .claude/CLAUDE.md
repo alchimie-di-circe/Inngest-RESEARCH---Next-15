@@ -105,6 +105,7 @@ src/
 ## 🔗 Key Documentation
 
 ### For Development
+- **[.factory/AGENTS.md](../.factory/AGENTS.md)** - Detailed Dev-Workflow & Testing strategy & MCP tools
 - **[AGENTS.md](../AGENTS.md)** - Testing strategy & MCP tools
 - **[docs/inngest/dev-workflow.md](../docs/inngest/dev-workflow.md)** - 3-level dev model
 - **[docs/INDEX.md](../docs/INDEX.md)** - Complete documentation map
@@ -115,6 +116,12 @@ src/
 - **[docs/agentkit-advanced-patterns.md](../docs/agentkit-advanced-patterns.md)** - AgentKit patterns
 
 ### For Testing
+
+## Skills Usage Guide
+- **[.factory/AGENTS.md](../.factory/AGENTS.md)** - Complete testing strategy and detailed skills usage guide
+- **[AGENTS.md](../AGENTS.md)** - Testing strategy & MCP tools
+- 
+## Documentation
 - **[docs/mcp-server-instructions/wallaby-mcp-guide.md](../docs/mcp-server-instructions/wallaby-mcp-guide.md)** - Unit tests
 - **[docs/mcp-server-instructions/testsprite-mcp-guide.md](../docs/mcp-server-instructions/testsprite-mcp-guide.md)** - E2E tests
 - **[docs/mcp-server-instructions/dagger-container-use.md](../docs/mcp-server-instructions/dagger-container-use.md)** - Container tests
@@ -174,7 +181,7 @@ For full tag-based navigation, see @docs/INDEX.md
 - `npx prisma migrate`
 
 ### Testing Workflow
-See [AGENTS.md](../AGENTS.md) for complete testing strategy:
+See [.factory/AGENTS.md](../.factory/AGENTS.md) and [AGENTS.md](../AGENTS.md) for complete testing strategy and detailed skills usage guide:
 
 | Test Type | Tool | Environment |
 |-----------|------|-------------|
@@ -240,7 +247,8 @@ This file provides:
 ## ✅ Before You Start
 
 - [ ] Read [QUICKSTART.md](../QUICKSTART.md) for setup
-- [ ] Read [AGENTS.md](../AGENTS.md) for testing
+- [ ] Read [.factory/AGENTS.md](../.factory/AGENTS.md) for testing skills and dev-workflow
+- [ ] Read [AGENTS.md](../AGENTS.md) for testing matrix and MCP tools
 - [ ] Check [docs/INDEX.md](../docs/INDEX.md) for complete docs map
 - [ ] Ensure Codespace is running (not local Mac)
 
@@ -249,4 +257,4 @@ This file provides:
 **Happy coding! 🎉**
 
 For detailed documentation, see [docs/INDEX.md](../docs/INDEX.md).  
-For testing workflows, see [AGENTS.md](../AGENTS.md).
+For testing workflows, see [.factory/AGENTS.md](../.factory/AGENTS.md).

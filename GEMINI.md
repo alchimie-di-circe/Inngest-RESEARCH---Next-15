@@ -1,78 +1,110 @@
-# Research & Publishing Suite
+# GEMINI.md - Context & Operational Guide
 
-## Project Overview
+> **Role**: Lead Orchestrator & Developer Agent
+> **System**: Research & Publishing Suite (Next.js 15 + Inngest)
+> **Environment**: Hybrid (Local Mac Air + Dagger Containers + Cloud Codespaces)
 
-This project is a **Research & Publishing Suite** designed to unify deep research, context gathering, content generation, and multi-channel publishing into a single workflow. It leverages **AI Agents** orchestrated by **Inngest** to automate complex tasks.
+---
 
-**Key Technologies:**
-*   **Framework:** Next.js 15 (App Router)
-*   **Orchestration:** Inngest (Durable execution, workflows)
-*   **AI:** Vercel AI SDK (Anthropic Claude models), AgentKit
-*   **Database:** Neon PostgreSQL (Serverless) with Prisma ORM
-*   **Vector DB:** Pinecone (Optional/Fallback)
-*   **Language:** TypeScript
+## 🛑 CRITICAL OPERATIONAL MANDATES
 
-## Building and Running
+**1. LOCAL MACHINE PROTECTION (Mac Air)**
+You are running on the user's local machine. To protect the environment:
+*   ❌ **NEVER** run `npm install`, `npm build`, or `npm test` directly on the local filesystem.
+*   ❌ **NEVER** run heavy Docker composes locally unless explicitly instructed.
+*   ✅ **ALWAYS** use the **Container-Use MCP** or **Codespaces** for execution.
+*   ✅ **ALLOWED locally**: `git` operations, file editing (`write_file`), static analysis (`tsc --noEmit`, `prettier`).
 
-### Prerequisites
-*   Node.js 20+
-*   PostgreSQL database (Neon recommended)
-*   Required Environment Variables (see `.env.example`)
+**2. TESTING STRATEGY**
+Never assume local environment readiness. Use the appropriate sandbox:
+*   **Unit Tests**: Delegate to **Wallaby MCP** (if active) or run inside Container.
+*   **Integration/E2E**: Delegate to **TestSprite MCP** or **Container-Use MCP**.
+*   **DB Migrations**: Execute inside Container or Cloud environment.
 
-### Key Commands
+**3. DATABASE INTERACTION**
+*   **ORM**: Prisma (Strictly). Do not use Drizzle.
+*   **Driver**: Neon Serverless driver.
+*   **Changes**: ALL schema changes must pass through a migration validation flow (see `docs/prisma/neon-guide.md`).
 
-*   **Install Dependencies:**
+---
+
+## 🧠 INTELLIGENT KNOWLEDGE ROUTING
+
+Before starting a task, verify if you need specific context. Search for these tags in `docs/` or use the referenced files.
+
+| Context Needed | Search Tag | Primary Documentation |
+|----------------|------------|-----------------------|
+| **Development Workflow** | `#container` | `.factory/rules/rule-mcp-container-use-QUICKSTART.md` |
+| **Inngest / Agents** | `#agentkit` | `docs/agentkit/advanced-patterns.md` |
+| **Database / ORM** | `#prisma` | `docs/prisma/neon-guide.md` |
+| **Testing Patterns** | `#testing` | `docs/mcp-server-instructions/testsprite-mcp-guide.md` |
+| **Project Arch** | `#arch` | `docs/project-architecture.md` |
+| **Next.js 15** | `#nextjs` | `UPGRADE/next-16_mcp-next-shadcn-UPGRADE-tasks.txt` |
+
+---
+
+## 🛠️ DEVELOPMENT WORKFLOWS
+
+### A. Feature Implementation (Container-First)
+**Preferred method for all coding tasks.**
+
+1.  **Setup**: Initialize a Dagger container using `container-use`.
     ```bash
-    npm install
+    # Example internal thought process
+    # User asks: "Implement Task 4"
+    # Action: Spin up container -> npm install -> Ready to code
     ```
-
-*   **Database Setup:**
+2.  **Develop**: Write code using `write_file` into the mounted workspace.
+3.  **Verify**: Run tests *inside* the container.
     ```bash
-    npx prisma db push
-    # or
-    npm run setup:db  # if defined in scripts
+    # Inside container
+    npm run test:unit
     ```
+4.  **Finalize**: Once green, commit changes via local git.
 
-*   **Start Development Servers:**
-    To run both Next.js and Inngest dev server concurrently:
-    ```bash
-    npm run devall
-    ```
-    
-    Or individually:
-    ```bash
-    npm run dev          # Next.js App (http://localhost:3000)
-    npm run inngestdev   # Inngest Dev Server (http://localhost:8288)
-    ```
+### B. Testing & Validation
+Use the specific MCPs configured in `.mcp.json`.
 
-*   **Linting & Formatting:**
-    ```bash
-    npm run lint
-    npx prettier --write .
-    ```
+*   **TestSprite**: `mcp invoke testsprite --test <file>` for standalone integration tests.
+*   **Wallaby**: Use for real-time TDD feedback if the user has the IDE extension active.
+*   **Inngest DevServer**: Use for testing event triggers and step orchestration.
 
-## Development Conventions
+---
 
-### Agent Guidelines
-**CRITICAL:** This project relies heavily on specific agent workflows documented in `AGENTS.md` and `CLAUDE.md`.
+## 📂 PROJECT STRUCTURE & CONVENTIONS
 
-*   **Testing:** Do **not** run full test suites locally on limited hardware. The project follows a "Delegate Testing" philosophy using tools like TestSprite MCP or Wallaby MCP (see `AGENTS.md`).
-*   **Pre-commit:** Always run Prettier on modified files before committing:
-    ```bash
-    npx prettier --write <modified-files>
-    ```
+### Core Stack
+*   **Framework**: Next.js 15 (App Router)
+*   **Orchestration**: Inngest (v3 SDK) + Checkpointing (Low Latency)
+*   **Streaming**: Inngest Realtime (Native WebSocket)
+*   **Database**: Neon Postgres + Prisma
+*   **AI**: Vercel AI SDK + AgentKit
 
-### Project Structure
-*   `src/app`: Next.js App Router pages and API routes.
-*   `src/inngest`: Inngest functions, agents, and workflow definitions.
-*   `src/lib`: Shared utilities, DB clients, and API wrappers.
-*   `prisma`: Database schema definition.
-*   `.taskmaster`: Project management and task definitions.
-*   `.claude/knowledge`: Documentation on architecture and patterns.
-    *   `prisma/`: Prisma & Neon specific guides and best practices.
+### Directory Map
+*   `src/inngest/`: **CRITICAL**. Contains all Agent definitions and Workflows.
+    *   `functions/`: Individual Inngest functions.
+    *   `client.ts`: Inngest client configuration.
+*   `.taskmaster/`: Project management state.
+    *   `tasks/`: Active tasks (JSON).
+    *   `docs/`: PRPs (Product Requirement Pyramids) and research.
+*   `prisma/`: Database schema and seeds.
+*   `src/lib/mcp/`: Custom MCP clients (Jina, Firecrawl, etc.).
 
-### Workflow
-1.  **Deep Research:** Multi-step research orchestration.
-2.  **Context Research:** Analysis and brand contextualization.
-3.  **Content Generation:** AI-driven drafting and design (Canva MCP).
-4.  **Publishing:** Multi-channel distribution (Shopify, Socials).
+### Coding Standards
+1.  **Types**: Strict TypeScript. Zod schemas for all Inngest events.
+2.  **Formatting**: Prettier is law. Run `npx prettier --write <file>` after editing.
+3.  **Exports**: Use named exports. Avoid default exports in `src/lib`.
+
+---
+
+## 📋 COMMAND REFERENCE (Local Safe)
+
+You may safely execute these on the host machine:
+
+*   `git status` / `git diff`
+*   `npx prettier --write .`
+*   `npx tsc --noEmit`
+*   `/jules` (To delegate large refactors to the Jules agent)
+*   `container-use ...` (To interact with dev containers)
+
+**DO NOT EXECUTE:** `npm run dev`, `npm install` (Redirect user to Codespace or Container).

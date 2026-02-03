@@ -1,0 +1,146 @@
+Perfetto use case: puoi trattare Jules repoless come “worker headless” chiamato da Gemini per task/sub‑task, mantenendo tutto lo stato e il reasoning *dentro* la session di Gemini. [jules](https://jules.google/docs/changelog/)
+
+## Idea di workflow high-level
+
+- Gemini CLI resta l’orchestratore: tiene in pancia il contesto del progetto (file, repo, stato conversazione).  
+- Quando serve “lavoro sporco” (generare file, test, script, refactor localizzato), Gemini chiama Jules REST API in modalità repoless. [jules](https://jules.google/docs/changelog/)
+- Jules crea una VM effimera, esegue il task, restituisce file/patch; Gemini decide come integrarli nel proprio workspace. [jules](https://jules.google/docs/changelog/)
+
+Di seguito uno **pseudo‑flusso headless** pensato da dare in pasto a Gemini come “pattern di delega”.
+
+***
+
+## Prompt di sistema per Gemini (idea)
+
+Puoi dare a Gemini qualcosa di questo tipo:
+
+> Sei un orchestratore che usa Jules via REST API (repoless) come worker esterno.  
+> - Mantieni sempre tu lo stato del progetto (file correnti, diff, branch).  
+> - Per ogni subtask che richiede generazione o modifica di codice non banale, crea una sessione Jules repoless con un prompt strutturato, attendi gli output (file/patch) e poi integra le modifiche nel workspace locale.  
+> - Non abbandonare mai questa sessione: usa Jules solo tramite HTTP, non tramite la sua estensione interattiva.
+
+***
+
+## Schema di chiamata a Jules (pseudocodice)
+
+Usa repoless come da changelog (solo `prompt`, nessun `sourceContext`). [jules](https://jules.google/docs/changelog/)
+
+```bash
+PROMPT_CONTENT=$(cat << 'EOF'
+You are an AI coding agent working in an ephemeral dev environment.
+Task:
+- Generate a single TypeScript file called `src/new-feature.ts`
+- It should export a function `runNewFeature()` with the following behavior:
+  ...
+
+Constraints:
+- Only touch files you create yourself.
+- Keep the implementation self-contained.
+- At the end, summarize what you did.
+
+EOF
+)
+
+curl 'https://jules.googleapis.com/v1alpha/sessions' \
+  -X POST \
+  -H "Content-Type: application/json" \
+  -H "x-goog-api-key: $JULES_API_KEY" \
+  -d "$(jq -n --arg prompt "$PROMPT_CONTENT" '{prompt: $prompt}')"
+```
+
+- Questo crea una **Session** repoless in cloud, senza repo. [jules](https://jules.google/docs/changelog/)
+- Gemini prende `session.id` dalla risposta e lo usa per interrogare lo stato/outputs.
+
+***
+
+## Step che Gemini può seguire per ogni subtask
+
+1. **Analizza subtask localmente**  
+   - Decide cosa delegare (es. “genera file X”, “genera test per Y”).  
+   - Prepara un prompt per Jules che includa eventuali snippet/firme necessari.
+
+2. **Crea sessione Jules repoless**
+
+   Pseudocodice lato Gemini:
+
+   ```python
+   def jules_repoless_task(prompt: str) -> dict:
+       payload = {"prompt": prompt}
+       resp = http.post(
+           "https://jules.googleapis.com/v1alpha/sessions",
+           headers={
+               "Content-Type": "application/json",
+               "x-goog-api-key": JULES_API_KEY,
+           },
+           json=payload,
+       )
+       return resp.json()  # contiene session.id, stato iniziale, ecc.
+   ```
+
+3. **Poll delle attività / completamento**
+
+   Jules espone le “activities” della sessione, filtrabili per timestamp (`createTime`). [jules](https://jules.google/docs/changelog/)
+
+   ```python
+   def jules_wait_until_done(session_id: str):
+       # loop su /sessions/{id}/activities con createTime come cursore
+       # finché non si vede un evento "Session finished: completed"
+       ...
+   ```
+
+4. **Recupero degli output di file (git patch)**
+
+   Dal changelog: “When a session completes a task, you can now get the **entire change set** stored in a git patch format.” [jules](https://jules.google/docs/changelog/)
+
+   Immaginando un endpoint tipo (API ref):  
+   `GET https://jules.googleapis.com/v1alpha/sessions/{id}/files` (o simile) che restituisce patch.
+
+   Pseudocode:
+
+   ```python
+   def jules_get_patch(session_id: str) -> str:
+       resp = http.get(
+           f"https://jules.googleapis.com/v1alpha/sessions/{session_id}/files",
+           headers={"x-goog-api-key": JULES_API_KEY},
+       )
+       return resp.text  # contenuto patch
+   ```
+
+5. **Applicare la patch nel workspace Gemini**
+
+   Gemini mantiene la view del filesystem (ad es. tramite tool “read_file/write_file/apply_patch” del suo CLI).  
+   I passi logici:
+
+   - Gemini prende la patch.  
+   - La applica ai file del progetto locale (o alla working copy “virtuale” se usi devcontainer/FS astratto).  
+   - Se la patch crea nuovi file, li aggiunge.  
+   - Aggiorna il proprio contesto e continua a ragionare sullo stato aggiornato.
+
+***
+
+## Pattern multi-subtask in una singola sessione Gemini
+
+Gemini può riciclare questo schema per una sequenza di subtasks:
+
+1. “Analizza issue” → reasoning puro in Gemini, nessuna chiamata esterna.  
+2. “Genera nuovo hook React” → chiama Jules repoless, applica patch.  
+3. “Genera test Jest per quel hook” → nuovo prompt a Jules repoless, patch.  
+4. “Aggiorna docs Markdown” → ancora Jules, patch.  
+
+Gemini resta sempre “master of truth” del progetto, Jules sono solo workers effimeri in cloud che consegnano codice e patch, senza toccare branch o PR su GitHub. [jules](https://jules.google/docs/changelog/)
+
+***
+
+## Frase pronta da incollare a Gemini
+
+Se ti è comodo, puoi usare qualcosa tipo:
+
+> Quando ti chiedo di delegare un subtask a Jules, esegui questi passi:  
+> 1) sintetizza un prompt chiaro per Jules,  
+> 2) crea una sessione Jules repoless via REST API,  
+> 3) aspetta che la sessione finisca,  
+> 4) scarica l’intero change set in formato git patch,  
+> 5) applica la patch al progetto su cui stiamo lavorando,  
+> 6) mostrami un breve riassunto dei file modificati e continua il reasoning da qui. [jules](https://jules.google/docs/changelog/)
+
+Se vuoi, nel messaggio dopo posso adattare questo pattern a un repo concreto tuo (es. Svelte/Electron/Convex) con un prompt già suddiviso per ruoli e constraint.

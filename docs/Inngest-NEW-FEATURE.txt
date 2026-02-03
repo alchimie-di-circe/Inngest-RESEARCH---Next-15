@@ -1,0 +1,1318 @@
+# Connect
+
+> **Info:** These docs are part of a developer preview for Inngest's connect API. Learn more about the developer preview here.
+
+The `connect` API allows your app to create an outbound persistent connection to Inngest. Each app can establish multiple connections to Inngest, which enable you to scale horizontally across multiple workers. The key benefits of using `connect` compared to [`serve`](/docs-markdown/learn/serving-inngest-functions) are:
+
+- **Lowest latency** - Persistent connections enable the lowest latency between your app and Inngest.
+- **Elastic horizontal scaling** - Easily add more capacity by running additional workers.
+- **Ideal for container runtimes** -  Deploy on Kubernetes or ECS without the need of a load balancer for inbound traffic
+- **Simpler long running steps** - Step execution is not bound by platform http timeouts.
+
+## Minimum requirements
+
+### Language
+
+- **TypeScript**: SDK `3.34.1` or higher.
+- **Go**: SDK `0.11.2` or higher.
+- **Python**: SDK `0.5.0` or higher.
+  - Install the SDK with `pip install inngest[connect]` since there are additional dependencies required.
+  - We also recommend the following constraints:
+    - `protobuf>=5.29.4,<6.0.0`
+    - `psutil>=6.0.0,<7.0.0`
+    - `websockets>=15.0.0,<16.0.0`
+
+### Runtime
+
+You must use a long running server (Render, Fly.io, Kubernetes, etc.). Serverless runtimes (AWS Lambda, Vercel, etc.) are not supported.
+
+If using TypeScript, your runtime must support built-in WebSocket support (Node `22.4.0` or higher, Deno `1.4` or higher, Bun `1.1` or higher).
+
+## Getting started
+
+Using `connect` with your app is simple. Using each SDK's "connect" method only requires a list of functions that are available to be executed. (Note: Python support is in beta; [upvote on our roadmap](https://roadmap.inngest.com/roadmap?id=2bac8d74-288f-47c7-8afc-3fd1a0e94654))
+
+Here is a one-file example of a fully-functioning app that connects to Inngest.
+
+```ts
+import { Inngest } from "inngest";
+import { connect } from "inngest/connect";
+
+const inngest = new Inngest({
+  id: "my-app",
+});
+
+const handleSignupFunction = inngest.createFunction(
+  { id: "handle-signup" },
+  { event: "user.created" },
+  async ({ event, step }) => {
+    console.log("Function called", event);
+  },
+);
+
+(async () => {
+  const connection = await connect({
+    apps: [{ client: inngest, functions: [handleSignupFunction] }],
+  });
+
+  console.log("Worker: connected", connection);
+})();
+```
+
+```go
+type UserCreatedEvent struct {
+	Name string
+	Data struct {
+		UserID string `json:"user_id"`
+	}
+}
+
+func main() {
+	ctx := context.Background()
+
+	client, err := inngestgo.NewClient(inngestgo.ClientOpts{
+		AppID:      "my-app",
+		Logger:     logger.StdlibLogger(ctx),
+		AppVersion: nil, // Optional, defaults to the git commit SHA
+	})
+	if err != nil {
+		panic(err)
+	}
+
+	_, err = inngestgo.CreateFunction(
+		client,
+		inngestgo.FunctionOpts{ID: "handle-signup", Name: "Handle signup"},
+		inngestgo.EventTrigger("user.created", nil),
+		func(ctx context.Context, input inngestgo.Input[UserCreatedEvent]) (any, error) {
+			fmt.Println("Function called")
+			return map[string]any{"success": true}, nil
+		},
+	)
+	if err != nil {
+		panic(err)
+	}
+
+	fmt.Println("Worker: connecting")
+
+	conn, err := inngestgo.Connect(ctx, inngestgo.ConnectOpts{
+		InstanceID: inngestgo.Ptr("example-worker"),
+		Apps:       []inngestgo.Client{client},
+	})
+	if err != nil {
+		fmt.Printf("ERROR: %#v\n", err)
+		os.Exit(1)
+	}
+
+  defer func(conn connect.WorkerConnection) {
+		<-ctx.Done()
+		err := conn.Close()
+		if err != nil {
+			fmt.Printf("could not close connection: %s\n", err)
+		}
+	}(conn)
+}
+```
+
+```python
+import asyncio
+import inngest
+from inngest.connect import connect
+
+client = inngest.Inngest(app_id="my-app")
+
+@client.create_function(
+    fn_id="handle-signup",
+    trigger=inngest.TriggerEvent(event="user.created"),
+)
+async def fn_1(ctx: inngest.Context) -> None:
+    print("Function called")
+
+functions = [fn_1]
+
+asyncio.run(
+    connect(
+        apps=[(client, functions)],
+    ).start()
+)
+```
+
+## How does it work?
+
+The `connect` API establishes a persistent WebSocket connection to Inngest. Each connection can handle executing multiple functions and steps concurrently. Each app can create multiple connections to Inngest enabling horizontal scaling. Additionally, connect has the following features:
+
+- **Automatic re-connections** - The connection will automatically reconnect if it is closed.
+- **Graceful shutdown** - The connection will gracefully shutdown when the app receives a signal to terminate (`SIGTERM`). New steps will not be accepted after the connection is closed, and existing steps will be allowed to complete.
+- **Worker-level maximum concurrency (Coming soon)** - Each worker can configure the maximum number of concurrent steps it can handle. This allows Inngest to distribute load across multiple workers and not overload a single worker.
+
+## Local development
+
+During local development, set the `INNGEST_DEV=1` environment variable to enable local development mode. This will cause the SDK to connect to [the Inngest dev server](/docs-markdown/dev-server). When your worker process is running it will automatically connect to the dev server and sync your functions' configurations.
+
+No signing or event keys are required in local development mode.
+
+## Deploying to production
+
+> **Warning:** The connect API is currently in developer preview and is not yet recommended for critical production workloads. We recommend deploying to a staging environment first prior to deploying to production.
+
+### Set signing and event keys
+
+To enable your application to securely connect to Inngest, you must set the `INNGEST_SIGNING_KEY` and `INNGEST_EVENT_KEY` environment variables.
+
+These keys can be found in the Inngest Dashboard. Learn more about [Event keys](/docs-markdown/events/creating-an-event-key) and [Signing Keys](/docs-markdown/platform/signing-keys).
+
+### Set your app version
+
+The `appVersion` is used to identify the version of your app that is connected to Inngest. This allows Inngest to support rolling deploys where multiple versions of your app may be connected to Inngest.
+
+When a new version of your app is connected to Inngest, the functions' configurations are synced to Inngest. When a new version is connected, Inngest update the function configuration in your environment and starts routing new function runs to the latest version.
+
+You can set the `appVersion` to whatever you want, but we recommend using something that automatically changes with each deploy, like a git commit sha or Docker image tag.
+
+```ts {{ title: "Any platform" }}
+// You can set the app version to any environment variable, you might use
+// a build number ('v2025.02.12.01'), git commit sha ('f5a40ff'), or
+// a custom value ('my-app-v1').
+const inngest = new Inngest({
+  id: 'my-app',
+  appVersion: process.env.MY_APP_VERSION, // Use any environment variable you choose
+})
+```
+
+```ts {{ title: "GitHub Actions" }}
+// If you're using Github Actions to build your app, you can set the
+// app version to the GITHUB_SHA environment variable during build time
+// or inject into the build of a Docker image.
+const inngest = new Inngest({
+  id: 'my-app',
+  appVersion: process.env.GITHUB_SHA,
+})
+```
+
+```ts {{ title: "Render" }}
+// Render includes the RENDER_GIT_COMMIT env var at build and runtime.
+// https://render.com/docs-markdown/environment-variables
+const inngest = new Inngest({
+  id: 'my-app',
+  appVersion: process.env.RENDER_GIT_COMMIT,
+})
+```
+
+```ts {{ title: "Fly.io" }}
+// Fly includes a machine version env var at runtime.
+// https://fly.io/docs-markdown/machines/runtime-environment/
+const inngest = new Inngest({
+  id: 'my-app',
+  appVersion: process.env.FLY_MACHINE_VERSION,
+})
+```
+
+### Set the instance id (recommended)
+
+The `instanceId` is used to identify the worker instance of your app that is connected to Inngest. This allows Inngest to support multiple instances (workers) of your app connected to Inngest.
+
+By default, Inngest will attempt to use the hostname of the worker as the instance id. If you're running your app in a containerized environment, you can set the `instanceId` to the container id.
+
+```ts {{ title: "Any platform" }}
+// Set the instance ID to any environment variable that is unique to the worker
+await connect({
+  apps: [...],
+  instanceId: process.env.MY_CONTAINER_ID,
+})
+```
+
+```ts {{ title: "Kubernetes + Docker" }}
+// instanceId defaults to the HOSTNAME environment variable.
+// By default, Kubernetes and Docker set the HOSTNAME environment variable to the pod name
+// so it is automatically set for you.
+await connect({
+  apps: [...],
+  // This is what happens under the hood if you don't set instanceId
+  // instanceId: process.env.HOSTNAME,
+})
+```
+
+```ts {{ title: "Render" }}
+// Render includes the RENDER_INSTANCE_ID env var at runtime.
+// https://render.com/docs-markdown/environment-variables
+await connect({
+  apps: [...],
+  instanceId: process.env.RENDER_INSTANCE_ID,
+})
+```
+
+```ts {{ title: "Fly.io" }}
+// Fly includes the FLY_MACHINE_ID env var at runtime.
+// https://fly.io/docs-markdown/machines/runtime-environment/
+await connect({
+  apps: [...],
+  instanceId: process.env.FLY_MACHINE_ID,
+})
+```
+
+### Set the max concurrency (recommended)
+
+The `maxWorkerConcurrency` option is used to limit the number of concurrent steps that can be executed by the worker instance.
+This allows Inngest to distribute load across multiple workers and not overload a single worker.
+
+```ts
+await connect({
+  apps: [...],
+  maxWorkerConcurrency: 10,
+})
+```
+
+## Lifecycle
+
+As a connect worker is a long-running process, it's important to understand the lifecycle of the worker and how it relates to the deployment of a new version of your app. Here is an overview of the lifecycle of a connect worker and where you can hook into it to handle graceful shutdowns and other lifecycle events.
+
+`CONNECTING` - The worker is establishing a connection to Inngest. This starts when `connect()` is called.
+
+First, the worker sends a request to the Inngest API via HTTP to get connection information. The response includes the WebSocket gateway URL. The worker then connects to the WebSocket gateway.
+
+`ACTIVE` - The worker is connected to Inngest and ready to execute functions.
+
+- The new `appVersion` is synced including the latest function configurations.
+- The worker begins sending and receiving "heartbeat" messages to Inngest to ensure the connection is still active.
+- The worker will automatically reconnect if the connection is lost.
+
+```ts {{ title: "TypeScript" }}
+// The connect promise will resolve when the connection is ACTIVE
+const connection = await connect({
+  apps: [...],
+})
+console.log(`The worker connection is: ${connection.state}`)
+// The worker connection is: ACTIVE
+```
+
+`RECONNECTING` - The worker is reconnecting to Inngest after a connection was lost.
+
+The worker will automatically flush any in-flight steps via the HTTP API when the WebSocket connection is lost.
+
+By default, the worker will attempt to reconnect to Inngest an infinite number of times. See the [developer preview limitations](#limitations) for more details.
+
+`CLOSING` - The worker is beginning the shutdown process.
+
+- New steps will not be accepted after this state is entered.
+- Existing steps will be allowed to complete. The worker will flush any in-flight steps via the HTTP API after the WebSocket connection is closed.
+
+By default, the SDK listens for `SIGTERM` and `SIGINT` signals and begins the shutdown process. You can customize this behavior by in each SDK:
+
+```ts
+// You can explicitly configure which signals the SDK should
+// listen for by an array of signals to `handleShutdownSignals`:
+const connection = await connect({
+  apps: [...],
+  // ex. Only listen for SIGTERM, or pass an empty array to listen to no signals
+  handleShutdownSignals: ['SIGTERM'],
+})
+```
+
+```go
+// The Go SDK must receive a Context object that will be notified
+// when the correct signals are received. Use signal.NotifyContext:
+ctx, cancel := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
+defer cancel()
+
+// Later in your function - pass the context to the connect function:
+ws, err := inngestgo.Connect(ctx, inngestgo.ConnectOpts{
+    InstanceID: inngestgo.Ptr("example-worker"),
+    Apps:       []inngestgo.Client{client},
+})
+```
+
+You can manually close the connection with the `close` method on the connection object:
+
+```ts
+await connection.close()
+// Connection is now closed
+```
+
+`CLOSED` - The worker's WebSocket connection has closed.
+
+By this stage, all in-flight steps will be flushed via the HTTP API as the WebSocket connection is closed, ensuring that no in-progress steps are lost.
+
+```ts {{ title: "TypeScript" }}
+// The `closed` promise will resolve when the connection is "CLOSED"
+await connection.closed
+// Connection is now closed
+```
+
+> **Info:** WebSocket connection and HTTP fallback - While a WebSocket connection is open, the worker will receive and send all step results via the WebSocket connection. When the connection closes, the worker will fallback to the HTTP API to send any remaining step results.
+
+## Worker observability
+
+In the Inngest Cloud dashboard, you can view the connection status of each of your workers. At a glance, you can see each worker's instance id, connection status, connected at timestamp, last heartbeat, the app version, and app version.
+
+This view is helpful for debugging connection issues or verifying rolling deploys of new app versions.
+
+![App worker observability](/assets/docs-markdown/connect/cloud-app-workers.png)
+
+## Syncing and Rollbacks
+
+[//]: <> "TODO: Create diagram to explain syncing"
+
+Inngest keeps track of the version your workers are running on. This internal representation changes when you update your function configuration, provide a new app version identifier to the client configuration, or change the SDK version or language.
+
+When you deploy a new version of your application, the first worker to connect to Inngest will automatically sync your app. This will update function configurations to the desired state configured in your code.
+
+`connect` supports rolling releases: During a deployment of your app, Inngest will run functions on all connected workers, regardless of the version, as long as they are able to process a request for a given function. This prevents traffic from concentrating on a single instance during rollouts and causing a thundering herd issue.
+
+Once all old workers have terminated after a deployment, you can roll back to an old version by bringing back an old worker. Similar to the deployment process, this will update the function configuration to the previous state and gradually allow you to shift traffic to the old version by bringing up more old workers while terminating workers running the newer version.
+
+## Health checks
+
+If you are running your app in a containerized environment, we recommend using a health check to ensure that your app is running and ready to accept connections. This is key for graceful rollouts of new app versions. If you are using Kubernetes, we recommend using the `readinessProbe` to check that the app is ready to accept connections.
+
+The simplest way to implement a health check is to create an http endpoint that listens for health check requests. As connect is an outbound WebSocket connection, you'll need to create a small http server that listens for health check requests and returns a 200 status code when the connection to Inngest is active.
+
+Here is an example of using `connect` with a basic Node.js http server to listen for health check requests and return a 200 status code when the connection to Inngest is active.
+
+```ts {{ title: "Node.js" }}
+import { createServer } from "http";
+import { connect, ConnectionState } from "inngest/connect";
+import { inngest, functions } from "./src/inngest";
+
+(async () => {
+  const connection = await connect({
+    apps: [{ client: inngest, functions }],
+  });
+
+  console.log("Worker: connected", connection);
+
+  // This is a basic web server that only listens for the /ready endpoint
+  // and returns a 200 status code when the connection to Inngest is active.
+  const httpServer = createServer((req, res) => {
+    if (req.url === "/ready") {
+      if (connection.state === ConnectionState.ACTIVE) {
+        res.writeHead(200, { "Content-Type": "text/plain" });
+        res.end("OK");
+      } else {
+        res.writeHead(500, { "Content-Type": "text/plain" });
+        res.end("NOT OK");
+      }
+      return;
+    }
+    res.writeHead(404, { "Content-Type": "text/plain" });
+    res.end("NOT FOUND");
+  });
+
+  // Start the server on a port of your choice
+  httpServer.listen(8080, () => {
+    console.log("Worker: HTTP server listening on port 8080");
+  });
+
+  // When the Inngest connection has gracefully closed,
+  // this will resolve and the app will exit.
+  await connection.closed;
+  console.log("Worker: Shut down");
+
+  // Stop the HTTP server
+  httpServer.close();
+})();
+```
+
+```ts {{ title: "Bun (JavaScript)" }}
+import { connect, ConnectionState } from "inngest/connect";
+import { inngest, functions } from "./src/inngest";
+
+const connection = await connect({
+  apps: [{ client: inngest, functions }],
+});
+
+console.log("Worker: connected", connection);
+
+// Start a basic web server that only listens for the /ready endpoint
+// and returns a 200 status code when the connection to Inngest is active.
+const server = Bun.serve({
+  port: 8080,
+  routes: {
+    "/ready": async () => {
+      return connection.state === ConnectionState.ACTIVE
+        ? new Response("OK")
+        : new Response("Not Ready", { status: 500 });
+    },
+  },
+  fetch(req) {
+    return new Response("Not Found", { status: 404 });
+  },
+});
+
+console.log("Worker: HTTP server listening on port 8080");
+
+// When the Inngest connection has gracefully closed,
+// this will resolve and the app will exit.
+await connection.closed;
+console.log("Worker: Shut down");
+
+// Stop the HTTP server
+await server.stop();
+```
+
+### Kubernetes readiness probe
+
+If you are running your app in Kubernetes, you can use the `readinessProbe` to check that the app is ready to accept connections. For the above example running on port 8080, the readiness probe would look like this:
+
+```yaml
+readinessProbe:
+  httpGet:
+    path: /ready
+  initialDelaySeconds: 3
+  periodSeconds: 10
+  successThreshold: 3
+  failureThreshold: 3
+```
+
+## Worker concurrency
+
+Worker concurrency is supported in the following versions of the SDK:
+
+- **TypeScript**: SDK `3.45.1` or higher.
+- **Go**: SDK `0.14.3` or higher.
+- **Python**: SDK `0.5.12` or higher.
+
+Each worker can configure the maximum number of concurrent steps it can execute simultaneously using the `maxWorkerConcurrency` option.
+This allows you to control resource usage and prevent a single worker from being overwhelmed with too many concurrent requests.
+
+By default, there is no limit on concurrent step execution. The worker will accept as many steps as Inngest sends to it.
+
+When you set `maxWorkerConcurrency`, Inngest will distribute load across multiple workers based on their available capacity.
+Workers with available capacity will receive more work, while workers at their limit will not receive additional steps until capacity becomes available.
+
+Inngest uses the `instanceId` to track the `maxWorkerConcurrency` for each worker.
+This means that if you have multiple workers with the same `instanceId`, they will share the same `maxWorkerConcurrency` limit.
+
+Inngest considers the `maxWorkerConcurrency` from the latest connection request.
+This means that if you update the `maxWorkerConcurrency` after a worker is connected and create a new connection, the worker's `maxWorkerConcurrency` will be updated to the new limit.
+
+**Benefits:**
+
+- Prevents worker resource exhaustion (CPU, memory, connections)
+- Enables predictable resource allocation per worker
+- Helps with horizontal scaling over both homogeneous and heterogenous workers
+
+```ts
+await connect({
+  apps: [{ client: inngest, functions }],
+  instanceId: "example-worker",
+  maxWorkerConcurrency: 10, // Max 10 concurrent steps on this worker
+})
+```
+
+```go
+conn, err := inngestgo.Connect(ctx, inngestgo.ConnectOpts{
+  InstanceID:           inngestgo.Ptr("example-worker"),
+  MaxWorkerConcurrency: inngestgo.Ptr(int64(10)), // Max 10 concurrent steps
+  Apps:                 []inngestgo.Client{client},
+})
+```
+
+```python
+asyncio.run(
+    connect(
+        apps=[(client, functions)],
+        instance_id="example-worker",
+        max_worker_concurrency=10,  # Max 10 concurrent steps
+    ).start()
+)
+```
+
+**Environment variable:**
+
+You can also set the maximum worker concurrency via the `INNGEST_CONNECT_MAX_WORKER_CONCURRENCY` environment variable.
+This is useful for configuring concurrency without changing code.
+
+```bash
+INNGEST_CONNECT_MAX_WORKER_CONCURRENCY=100
+```
+
+If both the option and environment variable are set, the option takes precedence.
+
+**Default behavior:**
+
+If `maxWorkerConcurrency` is not set (or set to `0`), there is no limit on concurrent step execution.
+Inngest will send as many steps as limited by your account's concurrency limit.
+
+### Connection-level concurrency
+
+You can set a different `maxWorkerConcurrency` for each connection from the same worker by specifying a unique `instanceId` for each connection.
+This will allow you to have different `maxWorkerConcurrency` limits for different connections.
+
+Due to different `instanceId` value, Inngest will consider each connection as a separate worker and will not share the same `maxWorkerConcurrency` limit.
+
+```ts
+// Connection 1 with different concurrency limit
+await connect({
+  apps: [{ client: inngest, functions }],
+  instanceId: "worker-1-conn-1",
+  maxWorkerConcurrency: 50,
+})
+
+// Connection 2 with different concurrency limit
+await connect({
+  apps: [{ client: inngest, functions }],
+  instanceId: "worker-1-conn-2",
+  maxWorkerConcurrency: 20,
+})
+```
+
+```go
+// Connection 1 with different concurrency limit
+conn1, err := inngestgo.Connect(ctx, inngestgo.ConnectOpts{
+  InstanceID:           inngestgo.Ptr("worker-1-conn-1"),
+  MaxWorkerConcurrency: inngestgo.Ptr(int64(50)),
+  Apps:                 []inngestgo.Client{client},
+})
+
+// Connection 2 with different concurrency limit
+conn2, err := inngestgo.Connect(ctx, inngestgo.ConnectOpts{
+  InstanceID:           inngestgo.Ptr("worker-1-conn-2"),
+  MaxWorkerConcurrency: inngestgo.Ptr(int64(20)),
+  Apps:                 []inngestgo.Client{client},
+})
+```
+
+```python
+# Connection 1 with different concurrency limit
+asyncio.run(
+    connect(
+        apps=[(client, functions)],
+        instance_id="worker-1-conn-1",
+        max_worker_concurrency=50,
+    ).start()
+)
+
+# Connection 2 with different concurrency limit
+asyncio.run(
+    connect(
+        apps=[(client, functions)],
+        instance_id="worker-1-conn-2",
+        max_worker_concurrency=20,
+    ).start()
+)
+```
+
+## Self hosted Inngest
+
+> **Info:** Self-hosting support for connect is in development. Please contact us for more info.
+
+If you are [self-hosting](/docs-markdown/self-hosting?ref=docs-connect) Inngest, you need to ensure that the Inngest WebSocket gateway is accessible within your network. The Inngest WebSocket gateway is available at port `8289`.
+
+Depending on your network configuration, you may need to dynamically re-write the gateway URL that the SDK uses to connect.
+
+```ts
+const connection = await connect({
+  apps: [...],
+  rewriteGatewayEndpoint: (url) => { // ex. "wss://gw2.connect.inngest.com/v0/connect"
+    // If not running in dev mode, return
+    if (!process.env.INNGEST_DEV) {
+      const clusterUrl = new URL(url);
+      clusterUrl.host = 'my-cluster-host:8289';
+      return clusterUrl.toString();
+    }
+    return url;
+  },
+})
+```
+
+## Migrating from serve
+
+> **Info:** We are working on enabling more fine-grained function and app migrations from existing serve apps to connect.
+
+During the Inngest developer preview, we recommend setting up a new app for trying out `connect`. We will support gradually migrating your existing `serve` apps in a future release.
+
+## Developer preview
+
+The `connect` API is currently in developer preview. This means that the API is not yet recommended for critical production workloads and is subject to breaking changes.
+
+During the developer preview, the `connect` API is available to all Inngest accounts with the following plan-limits:
+
+- Free plan: 3 concurrent worker connections
+- All paid plans: 20 concurrent worker connections
+- Max apps per connection: 10
+
+Final plan limitations will be announced prior to general availability. Please [contact us](https://app.inngest.com/support) if you need to increase these limits.
+
+Read the [release phases](/docs-markdown/release-phases) for more details.
+
+### Limitations
+
+During the developer preview, there are some limitations to using `connect` to be aware of. Please [contact us](https://app.inngest.com/support) if you'd like clarity on any of the following:
+
+- **Reconnection policy is not configurable** - The SDK will attempt to reconnect to Inngest an infinite number of times. We will expose a configurable reconnection policy in the future.
+
+
+
+
+# Checkpointing
+
+Checkpointing is a performance optimization for Inngest functions that executes steps eagerly rather than waiting on internal orchestration. The result is dramatically lower latency — ideal for real-time AI workflows.
+
+## Minimum Requirements
+
+### Language
+
+- **TypeScript**: SDK `3.46.0` or higher.
+- **Go**: SDK version `v0.15.0`.
+
+## Getting Started
+
+#### TypeScript
+
+To enable checkpointing:
+
+1. Install `inngest@3.46.0` or higher
+2. Set `checkpointing: true` on your Inngest client or on individual functions
+
+**For all functions:**
+
+```ts
+import { Inngest } from "inngest";
+
+export const inngest = new Inngest({
+  id: "my-app",
+  checkpointing: true,
+});
+```
+
+**Per-function:**
+
+```ts
+export const myFunction = inngest.createFunction(
+  {
+    id: "my-function",
+    checkpointing: true,
+  },
+  { event: "app/my.event" },
+  async ({ step }) => {
+    // steps here will be checkpointed
+  }
+);
+```
+
+#### Go
+
+To enable checkpointing:
+
+1. Install the checkpoint package:
+
+```shell
+go get github.com/inngest/inngestgo/pkg/checkpoint
+```
+
+2. Set `Checkpoint` on your function options:
+
+```go
+import (
+  "github.com/inngest/inngestgo"
+  "github.com/inngest/inngestgo/pkg/checkpoint"
+)
+
+_, err := inngestgo.CreateFunction(
+  client,
+  inngestgo.FunctionOpts{
+    ID:         "my-function",
+    Name:       "My Function",
+    Checkpoint: checkpoint.ConfigSafe,
+  },
+  // ... triggers and handler
+)
+```
+
+## How Does It Work?
+
+The [Inngest default execution model](/docs-markdown/learn/how-functions-are-executed) is a complete handoff to the Inngest Platform, where an HTTP request is performed to store the execution state upon each step completion, leading to inter-step latency.
+
+![With and Without Checkpointing](/assets/docs-markdown/checkpointing/checkpointing_with_without.png)
+
+Checkpointing uses the SDK orchestrates steps on the client-side (*on your server*) and executes them immediately. As steps complete, checkpoint messages are sent to Inngest to track progress. The result is dramatically lower latency — ideal for real-time AI workflows.
+
+![Inngest Workflow Execution](/assets/docs-markdown/checkpointing/checkpointing_inngest_workflow.jpg)
+
+### Failures and Retries
+
+What happens when something goes wrong? If a step fails and needs to retry, the execution engine falls back to standard orchestration to handle it properly. You get speed when things work, and safety when they don't.
+
+## Beta
+
+Checkpointing is currently in beta, here are some limitations to be aware of:
+
+- **Parallel step execution** — When a function branches into parallel steps, execution switches to standard orchestration for the remainder of the run. Checkpointing does not resume after parallel execution.
+- **Limited configuration options** — Customization of checkpointing buffer size and buffer timeout is not yet available.
+
+| Feature             | Supported |
+| ------------------- | --------- |
+| Local development   | ✅         |
+| Self-hosted Inngest | ✅         |
+| Inngest Cloud       | ✅         |
+
+Read the [release phases](/docs-markdown/release-phases) for more details.
+
+
+
+
+
+
+# Realtime  &#x20;
+
+> **Info:** Realtime is currently in developer preview. Some details including APIs are still subject to change during this period. Read more about the developer preview here.
+
+Realtime enables you to stream updates from your Inngest functions to your users, power live UIs, and implement bi-directional workflows such as Human-in-the-Loop.
+
+Realtime user experience is a core requirement for any web application, especially when long-running tasks are involved. This is supported natively in Inngest without any additional infrastructure or configuration. Inngest manages the WebSocket server and the connection to your users.
+
+## Concepts
+
+There are two core parts of Realtime: **[publishing](#publishing)** and **[subscribing](#subscribing)**. You **publish** data from your functions and **subscribe** to data in your application, either browser or server.
+
+Publishing data is done using the `publish()` function and has three components:
+
+- `channel` - A namespace for which data belongs to, e.g., `user:123`. This is helpful to segment data to ensure that users only receive data that they are authorized to see.
+- `topic` - A category of data within a `channel`, e.g., `llm_text_stream` or `upload_progress`. This is helpful to differentiate between types of data that you might use in different parts of your application.
+- `data` - The data to be published to the realtime stream.
+
+## Quick start
+
+In this guide, we'll cover how to use realtime, publishing from an Inngest function and subscribing from the client (browser). Start by installing the `@inngest/realtime` package:
+
+#### TypeScript
+
+```shell {{ title: "npm" }}
+npm install @inngest/realtime
+```
+
+```shell {{ title: "yarn" }}
+yarn add @inngest/realtime
+```
+
+```shell {{ title: "pnpm" }}
+pnpm add @inngest/realtime
+```
+
+```shell {{ title: "Bun" }}
+bun add @inngest/realtime
+```
+
+```shell {{ title: "Deno" }}
+deno add jsr:@inngest/realtime
+```
+
+> **Info:** This guide requires @inngest/realtime version 0.4.0 or higher.
+
+#### Python
+
+> **Info:** This guide requires inngest version 0.5.9 or higher.
+
+### Publishing
+
+#### TypeScript
+
+To publish data from your Inngest functions, you'll need to add the `realtimeMiddleware()` to your Inngest client. This will automatically add the `publish()` function to your Inngest functions.
+
+```ts {{ title: "client.ts" }}
+import { Inngest } from "inngest";
+// ℹ️ Import the middleware from the middleware sub-package:
+import { realtimeMiddleware } from "@inngest/realtime/middleware";
+
+export const inngest = new Inngest({
+  id: "my-app",
+  middleware: [realtimeMiddleware()],
+});
+```
+
+Now, in your Inngest functions, the `publish()` function will be available as a parameter to your handler function. When publishing data, you'll need to specify the `channel` and `topic` you want to publish to and any data you want to publish.
+
+#### Python
+
+To publish data from your Inngest functions, you'll need to import the experimental.realtime module. This is where you'll find the publish and publish\_sync functions.
+
+See the [Fast API example](https://github.com/inngest/inngest-py/tree/main/examples/fast_api_realtime) for more information.
+
+#### TypeScript
+
+```tsx {{ title: "Basic (untyped)" }}
+import { inngest } from "./client";
+
+inngest.createFunction(
+  { id: "create-recommendation" },
+  { event: "ai/recommendation.requested" },
+  async ({ event, step, publish }) => {
+
+    const response = await step.run('generate-response', () => {
+      const response = llm.generateResponse(event.data.prompt);
+      await publish({
+        channel: `user:${event.data.userId}`,
+        topic: "ai",
+        data: {
+          response: response,
+          success: true,
+        },
+      })
+    });
+
+    // ℹ️ Want type-safety with channels and topics? See the typed channels tab above.
+  }
+);
+
+```
+
+```tsx {{ title: "Typed channels (recommended)" }}
+import { inngest } from "./client";
+import { channel, topic } from "@inngest/realtime";
+
+// Use the "channel" and "topic" functions to create helpers to
+// add type-safety when using realtime:
+
+// The "channel" builder function can accept a string as a channel name,
+// or a function that returns a string. Here we create a channel for all logs:
+const logsChannel = channel("logs").addTopic(topic("info").type<string>());
+
+// Here we create a channel using the function pattern, which allows us to pass
+// a parameter to the channel name. Here we create a channel for each user:
+// The "topic" builder function can accept a schema or a type
+const userChannel = channel((userId: string) => `user:${userId}`)
+  // Add a specific topic, eg. "ai" for all AI data within the user's channel
+  .addTopic(
+    topic("ai").schema(
+      z.object({
+        response: z.string(),
+        // Transforms are supported for realtime data
+        success: z.number().transform(Boolean),
+      })
+    )
+  );
+
+inngest.createFunction(
+  { id: "create-recommendation" },
+  { event: "ai/recommendation.requested" },
+  async ({ event, step, publish }) => {
+
+    await step.run('generate-response', () => {
+      const response = llm.generateResponse(event.data.prompt)
+      await publish(
+        userChannel(event.data.userId).ai({
+          response: response,
+          success: true,
+        })
+      );
+    });
+
+    await step.run("log-all-went-well", () => {
+      await publish(logsChannel().info("All went well"));
+    });
+  }
+);
+```
+
+#### Python
+
+```py {{ title: "Python" }}
+import inngest
+from inngest.experimental import realtime
+
+from .client import inngest_client
+
+@inngest_client.create_function(
+    fn_id="python-realtime-publish",
+    trigger=inngest.TriggerEvent(event="realtime.test"),
+)
+async def python_realtime_publish(ctx: inngest.Context) -> str:
+    async def my_first_step() -> dict[str, str]:
+        result = {"message": "My llm response from python!"}
+        await realtime.publish(
+            client=inngest_client,
+            channel="user:user_123456789",
+            topic="messages",
+            data=result,
+        )
+        return result
+
+    await ctx.step.run("my-first-step", my_first_step)
+
+    return "Finished!"
+```
+
+### Subscribing
+
+To subscribe to data on the client (browser), you'll need to create a subscription token and use the `subscribe()` function which also requires `channel` and `topic` to be specified.
+
+Your application uses the Inngest SDK to create a token, which is then used by the subscribe function to connect to the Inngest WebSocket server.
+
+### Create a subscription token
+
+Subscription tokens are required to securely establish a connection to the Inngest WebSocket server.
+
+Your application must create tokens on the server and pass them to the client. You can create a new endpoint to generate a token, ensuring that the user is authorized to subscribe to a given channel and topics.
+
+Here's an example of a server endpoint that creates a token, scoped to a user's channel and specific topics.
+
+```ts {{ title: "Next.js - Server action" }}
+// ex. /app/actions/get-subscribe-token.ts
+"use server";
+
+import { inngest } from "@/inngest/client";
+// See the "Typed channels (recommended)" section above for more details:
+import { userChannel } from "@/inngest/functions/helloWorld";
+import { getSubscriptionToken, Realtime } from "@inngest/realtime";
+import { getSession } from "@/app/lib/session"; // this could be any auth provider
+
+export type UserChannelToken = Realtime.Token<typeof userChannel, ["ai"]>;
+
+export async function fetchRealtimeSubscriptionToken(): Promise<UserChannelToken> {
+  const { userId } = await getSession();
+
+  // This creates a token using the Inngest API that is bound to the channel and topic:
+  const token = await getSubscriptionToken(inngest, {
+    channel: `user:${userId}`,
+    topics: ["ai"],
+  });
+
+  return token;
+}
+```
+
+```ts {{ title: "Express" }}
+import { inngest } from "./inngest/client";
+import { getSubscriptionToken } from "@inngest/realtime";
+import { getSession } from "src/session"; // this could be any auth provider
+
+app.post("/api/get-subscribe-token", async (req, res) => {
+  const { userId } = getSession(req)
+
+  // This creates a token using the Inngest API that is bound to the channel and topic:
+  const token = await getSubscriptionToken(inngest, {
+    channel: `user:${userId}`,
+    topics: ["ai"],
+  })
+
+  res.json({ token })
+})
+```
+
+```py {{ title: "Python - Fast API" }}
+@app.get("/api/get-subscription-token")
+async def get_realtime_token():
+# Here, you can get params from the request to;
+user_id = session["user_id"]
+# - Authorize what the user is allowed to subscribe to
+# - Allow the client to specify what topics they want to subscribe to
+return await realtime.get_subscription_token(
+    client=inngest_client,
+    channel=f"user:{user_id}",
+    topics=["messages"],
+)
+```
+
+### Subscribe to a channel
+
+Once you have a token, you can subscribe to a channel by calling the `subscribe` function with the token. You can also subscribe using the `useInngestSubscription` React hook. Read more about the [React hook here](/docs-markdown/features/realtime/react-hooks).
+
+```ts {{ title: "React hook - useInngestSubscription()" }}
+// ex: ./app/page.tsx
+"use client";
+
+// ℹ️ Import the hook from the hooks sub-package:
+import { useInngestSubscription } from "@inngest/realtime/hooks";
+import { useState } from "react";
+import { fetchRealtimeSubscriptionToken } from "./actions";
+
+export default function Home() {
+  // The hook automatically fetches the token from the server.
+  // The server checks that the user is authorized to subscribe to
+  // the channel and topic, then returns a token:
+  const { data, error, freshData, state, latestData } = useInngestSubscription({
+    refreshToken: fetchRealtimeSubscriptionToken,
+  });
+
+  return (
+    <div>
+      {data.map((message, i) => (
+        <div key={i}>{message.data}</div>
+      ))}
+    </div>
+  );
+}
+```
+
+```ts {{ title: "Basic subscribe" }}
+import { subscribe } from "@inngest/realtime";
+
+// The server checks that the user is authorized to subscribe to
+// the channel and topic, then returns a token:
+const { token } = await fetch("/api/get-subscribe-token", {
+  method: "POST",
+  credentials: "include",
+}).then(res => res.json());
+
+// The token is bound to the channel and topic, so we can
+// subscribe to the channel and topic:
+const stream = await subscribe(token);
+
+for await (const message of stream) {
+  console.log(message)
+}
+```
+
+That's all you need to do to subscribe to a channel from the client!
+
+## Guides
+
+Explore guides for using realtime with different frameworks and patterns:
+
+**"Use Realtime React hooks in Next.js"**: [Leverage the useInngestSubscription() hook to subscribe to realtime streams in your Next.js application.](/docs-markdown/features/realtime/react-hooks)
+
+**"Explore patterns and examples"**: [Use Realtime to stream updates from one or multiple Inngest functions, or to implement a Human-in-the-Loop mechanism.](/docs-markdown/examples/realtime)
+
+## SDK Support
+
+Realtime is supported in the following SDKs:
+
+| SDK        | Publish | Subscribe | Version   |
+| ---------- | ------- | --------- | --------- |
+| TypeScript | ✅       | ✅         | >=v3.32.0 |
+| Golang     | ✅       | ✅         | >=v0.9.0  |
+| Python     | ✅       | -         | >=v0.5.9  |
+
+## Limitations
+
+- The number of currently active topics depends on your Inngest plan
+- Data sent is currently at-most-once and ephemeral
+- The max message size is currently 512KB
+
+## Developer preview
+
+Realtime is available as a developer preview. During this period:
+
+- This feature is **widely available** for all Inngest accounts.
+- Some details including APIs and SDKs are subject to change based on user feedback.
+- There is no additional cost to using realtime. Realtime will be available to all Inngest billing plans at general availability, but final pricing is not yet determined.
+
+Read the [release phases](/docs/release-phases) for more details.
+
+## Security
+
+Realtime is secure by default. You can only subscribe to a channel's topics using time-sensitive tokens. The subscription token mechanism must be placed within your own protected API endpoints.
+
+You must always specify the channel and topics when publishing data. This ensures that users can only access specific subsets of data within runs.
+
+## Delivery guarantees
+
+Message delivery is currently at-most-once. We recommend that your users subscribe to a channel's topics as you invoke runs or send events to ensure delivery of data within a topic.
+
+
+# React hooks / Next.js&#x20;
+
+Realtime provides a [`useInngestSubscription()`](#use-inngest-subscription-api-reference) React hook, offering a fully typed experience for subscribing to channels.
+
+`useInngestSubscription()` securely subscribes to channels using a subscription token fetched from the server.
+
+In Next.js, this is implemented as a server action that returns a token, which is then used by the client to subscribe:
+
+```tsx {{filename: "src/actions.ts"}}
+"use server";
+// securely fetch an Inngest Realtime subscription token from the server as a server action
+export async function fetchSubscriptionToken(): Promise<Realtime.Token<typeof helloChannel, ["logs"]>> {
+  const token = await getSubscriptionToken(getInngestApp(), {
+    channel: helloChannel(),
+    topics: ["logs"],
+  });
+
+  return token;
+}
+```
+
+```tsx {{filename: "src/App.tsx"}}
+"use client";
+
+import { useInngestSubscription } from "@inngest/realtime/hooks";
+import { getSubscriptionToken, Realtime } from "@inngest/realtime";
+import { getInngestApp } from "@/inngest";
+import { helloChannel } from "@/inngest/functions/helloWorld";
+// import the server action to securely fetch the Realtime subscription token
+import { fetchRealtimeSubscriptionToken } from "./actions";
+
+export default function Home() {
+  // subscribe to the hello-world channel via the subscription token
+  // `data` is fully typed based on the selected channel and topics!
+  const { data, error } = useInngestSubscription({
+    refreshToken: fetchRealtimeSubscriptionToken,
+  });
+
+  return (
+    <div>
+      <h1>Realtime</h1>
+      {data.map((message, i) => (
+        <div key={i}>{message.data}</div>
+      ))}
+    </div>
+  )
+}
+```
+
+## `useInngestSubscription()` API Reference
+
+### Parameters
+
+- `enabled?: boolean` - Whether or not the hook will subscribe.
+- `bufferInterval?: number` - If set and above `0`, the outputs will only update every `n` milliseconds. This helps with very busy streams that could overwhelm a UI.
+- `token?: Realtime.Subscribe.Token` - The token to be used for subscribing (see [Subscribe from the client](/docs-markdown/features/realtime#subscribe-from-the-client)).
+- `refreshToken?: () => Promise<Realtime.Subscribe.Token>` - A function that will be called if no `token` is available, or if the hook has been re-`enabled` and the previous `token` has expired.
+
+> **Warning:** A token or refreshToken parameter is required.
+
+### Return value
+
+- `data: Array<Realtime.Message>` - All messages received on the subscription in chronological order.
+- `latestData: Realtime.Message` - A shortcut to the last message received on the subscription. Useful for streams where each message is the latest state of an entity.
+- `freshData: Array<Realtime.Message>` - If `bufferInterval` is active, this will be the last batch of messages released from the buffer. If `bufferInterval` is inactive, this is always the latest message.
+- `error: Error | null` - If truthy, this indicates an error with the subscription.
+- `state: InngestSubscriptionState` - The current state of the subscription, one of `"closed"`, `"error"`, `"refresh_token"`, `"connecting"`, `"active"`, or `"closing"`.
+- `clear: () => void` - A function to clear all accumulated message data from the internal state. This includes `data`, `freshData`, and `latestData` arrays. Does not affect the connection or error state.
+
+## Examples
+
+**"useInngestSubscription() Next.js demo"**: [Clone this demo to see an interactive example of the useInngestSubscription() hook in action.](https://github.com/inngest/inngest-js/tree/main/examples/realtime/next-realtime-hooks)
+
+**"Explore patterns and examples"**: [Use Realtime to stream updates from one or multiple Inngest functions, or to implement a Human-in-the-Loop mechanism.](/docs-markdown/examples/realtime)
+
+
+
+
+
+
+# Durable Endpoints&#x20;
+
+The latest versions of Inngest SDKs allow you to use steps directly within REST endpoints, allowing you to build resumable, durable workflows in any existing endpoint, triggered by your users.
+
+> **Info:** REST Endpoint support is currently in developer preview. Some details including APIs are still subject to change during this period. Read more about the developer preview here.SDK Support is currently being worked on, including all common frameworks.
+
+REST Endpoint support allows you to:
+
+- Build APIs with full observability and tracing support
+- Quickly build complex durable workflows
+- Work in your existing codebase, without learning new systems
+- Deploy anywhere your code currently runs
+- Execute functions with low latency
+
+## Quick start
+
+In order to start using steps within your API endpoints, you must first set up middleware to intercept HTTP requests.
+
+#### Go
+
+```go
+import (
+	"context"
+
+	"github.com/inngest/inngestgo/step"
+	"github.com/inngest/inngestgo/stephttp"
+)
+
+func setuphttp() {
+	// provider adds inngest support to http handlers
+	provider := stephttp.Setup(stephttp.SetupOpts{
+		Domain: "api.example.com", // add your api domain here.
+	})
+
+  // provider allows you to wrap individual http handlers via `provider.servehttp`,
+  // and provides stdlib-compatible middleware via `provider.middleware`
+  http.HandleFunc("/users", provider.ServeHTTP(handleUsers))
+
+  // or, via middleware with, for example, chi:
+  r := chi.NewRouter()
+  r.Use(provider.Middleware)
+  r.Get("/users", handleUsers)
+}
+```
+
+Once you've added the middleware, you can configure functions and execute steps within REST endpoints directly:
+
+```go
+import (
+	"context"
+
+	"github.com/inngest/inngestgo/step"
+	"github.com/inngest/inngestgo/stephttp"
+)
+
+func handleUsers(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+
+	stephttp.Configure(ctx, stephttp.FnOpts{
+		// Configure the function ID, removing IDs from the URL:
+		ID: "/users/{id}"
+	})
+
+	// Step 1: Authenticate (with full observability)
+	auth, err := step.Run(ctx, "authenticate", func(ctx context.Context) (*AuthResult, error) {
+		// You can chain steps as usual...
+		return nil, nil
+	})
+	if err != nil {
+		http.Error(w, "Authentication failed", http.StatusUnauthorized)
+		return
+	}
+	// ...
+}
+```
+
+## How it works
+
+REST Support works by applying middleware that tracks each HTTP request to your API endpoints.  This is the lifecycle of a REST API:
+
+1. Set up the Inngest request manager, which tracks runs of functions
+2. Execute the REST Endpoint as usual
+3. Track all steps, such as `step.run`
+4. If the function finishes, send the step information, input, and output to Inngest for observability
+5. If a step errors or any async step is used (eg. `step.waitForEvent`), send the step information to Inngest and switch the API endpoint from sync to async.
+   - Issue a redirect (which awaits the function's results) or custom HTTP response on async switching.
+
+### Switching REST Endpoints from sync to async
+
+When a step errors, or you use an async step (such as `step.sleep` or `step.waitForEvent`), Inngest must resume your API endpoint at some point in the future.  This means
+that your REST endpoint switches from being synchronous (sync) to asynchronous (finishing in the background).
+
+To handle this, Inngest provides two ways for you to switch to background execution of your API endpoints, automatically without extra code:
+
+1. *Redirection*:  By default, we redirect the caller of the API to an endpoint that blocks and waits for the function result.  This is seamless, and works across all REST methods
+2. *Custom repsonse*:  For each function you can override the async response handler to write any response to your users
+
+## SDK Support
+
+Steps in REST Endpoints is currently supported in the following SDKs:
+
+| SDK        | Support     | Version    |
+| ---------- | ----------- | ---------- |
+| TypeScript | In Progress | -          |
+| Golang     | ✅           | >= v0.14.0 |
+| Python     | In progress | -          |
+
+## Developer Preview
+
+REST Endpoint support is available as a developer preview. During this period:
+
+- This feature is **widely available** for all Inngest accounts.
+- Some details including APIs and SDKs are subject to change based on user feedback.
+- As we improve support for steps in REST endpoints, some unknown issues may be uncovered during the preview
+
+Read the [release phases](/docs-markdown/release-phases) for more details.
+
+## Limitations
+
+Because REST endpoints are initialized by your own users instead of Inngest, there are several key considerations and differences to know:
+
+- [Flow control](/docs-markdown/guides/flow-control) is not available (See "Coming soon")
+- Redirects currently wait for up to 5 minutes for the function to finish in the background
+
+## Roadmap
+
+REST Endpoint support is rapidly being improved, with full support of Inngest planned:
+
+### Coming soon
+
+- Full flow control support
+- End-to-end encryption across REST-based functions
+- Wider support for GraphQL
+
+### Roadmap
+
+- `step.defer`, for executing small steps in the background once results have been sent to users
