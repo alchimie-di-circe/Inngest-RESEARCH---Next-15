@@ -16,9 +16,27 @@ All orchestrated via **Inngest + AgentKit + Next.js 15**.
 - **Orchestration**: Inngest (durable execution, events, workflows, realtime)
 - **Agent Framework**: AgentKit (multi-agent reasoning, tool use, MCP servers)
 - **LLM**: Anthropic Claude 3.5 Sonnet (via AI SDK)
-- **Database**: Neon PostgreSQL (serverless, Inngest triggers)
+- **Database**: Neon PostgreSQL (serverless, branching, Inngest triggers)
 - **Vector DB**: Pinecone (optional, fallback to in-memory)
 - **APIs**: ArXiv, GitHub, Exa Web Search, Shopify, Twitter/LinkedIn, Canva (MCP)
+
+### Neon Database Configuration
+
+| Setting | Value |
+|---------|-------|
+| **Project ID** | `summer-haze-17190561` |
+| **Database** | `neondb` |
+| **Owner Role** | `neondb_owner` |
+
+**Branches**:
+
+| Branch | ID | Environment |
+|--------|-----|-------------|
+| **production** | `br-jolly-salad-agb6asse` | Live |
+| **preview** | `br-fragrant-dawn-ag82fjdz` | PR previews |
+| **dev** | `br-sparkling-darkness-agdcyxfm` | Development |
+
+See [QUICKSTART.md](QUICKSTART.md) for connection setup.
 
 ## Two-Step Workflow
 

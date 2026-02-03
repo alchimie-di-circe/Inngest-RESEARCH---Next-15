@@ -1,0 +1,540 @@
+Ecco il prompt completo per Claude Code per aggiungere l'upgrade Next.js 16 e l'integrazione degli MCP dev tools alla tasklist:
+
+***
+
+## Prompt per Claude Code: Aggiunta Task Upgrade Next.js 16 + MCP Dev Tools
+
+### Contesto
+Sto lavorando su un'app Inngest AgentKit basata su Next.js 15 che deve essere aggiornata a Next.js 16. Voglio aggiungere alla mia tasklist TaskMaster (`.taskmaster/tasks/tasks.json`) i task per:
+1. **Upgrade Next.js 15 → Next.js 16** usando il tool dedicato dell'MCP ufficiale Vercel
+2. **Setup MCP Next.js DevTools** per i miei CLI agents (Claude Code, Droid)
+3. **Setup MCP shadcn** per gestione componenti UI automatizzata
+
+### Obiettivo
+Aggiorna `.taskmaster/tasks/tasks.json` aggiungendo una nuova sezione "Infrastructure Upgrade" con task dettagliati e ben documentati per l'upgrade Next.js 16 e setup degli MCP dev tools.
+
+***
+
+## Documentazione di Riferimento
+
+### 1. Next.js DevTools MCP (Vercel Ufficiale)
+**Repository:** https://github.com/vercel/next-devtools-mcp
+
+#### Tool Principale: `upgrade_nextjs_16`
+Tool dedicato per upgrade automatizzato che applica codemods ufficiali Next.js 16
+
+#### Configurazione MCP Server
+```json
+{
+  "mcpServers": {
+    "next-devtools": {
+      "command": "npx",
+      "args": ["-y", "next-devtools-mcp@latest"]
+    }
+  }
+}
+```
+
+#### Workflow di Upgrade
+1. **Inizializzazione contesto:**
+   ```bash
+   # Tool: init
+   # Stabilisce contesto Next.js e accesso alla documentazione ufficiale
+   ```
+
+2. **Esecuzione upgrade:**
+   ```bash
+   # Tool: upgrade_nextjs_16
+   # Applica codemods automatici per Next.js 16
+   ```
+
+3. **Post-upgrade diagnostics:**
+   ```bash
+   # Tool: get_errors (Next.js 16+)
+   # Verifica errori runtime e build
+   ```
+
+#### Funzionalità Next.js 16+
+- **Runtime Diagnostics:** build errors, runtime errors, dev server logs
+- **Route Inspection:** application routes, metadata, params
+- **Server Actions:** inspection e debugging
+- **Cache Components:** setup automatico con `enable_cache_components`
+
+#### Knowledge Base Integrata
+12 risorse curate su:
+- Cache Components
+- Async Request APIs
+- Metadata APIs
+- Turbopack integration
+- Best practices Next.js 16
+
+#### Auto-Initialization
+Per Claude Code, aggiungi in `.claude/instructions`:
+```
+When working with Next.js projects, always call the Next.js DevTools 'init' tool first to establish proper context and ensure access to official Next.js 16 documentation.
+```
+
+***
+
+### 2. shadcn MCP Server
+**Documentazione:** https://ui.shadcn.com/docs/mcp
+
+#### Configurazione MCP Server
+```json
+{
+  "mcpServers": {
+    "shadcn": {
+      "command": "npx",
+      "args": ["shadcn@latest", "mcp"]
+    }
+  }
+}
+```
+
+#### Tool Disponibili
+1. **list-registries** - Lista registry configurati
+2. **list-components** - Componenti disponibili per registry
+3. **search-registry** - Ricerca componenti per nome/tag
+4. **add-component** - Installa componenti con natural language
+
+#### Utilizzo Natural Language
+```bash
+# Esempi di comandi naturali:
+"Add the button, dialog and card components to my project"
+"Create a contact form using components from the shadcn registry"
+"Build a landing page using hero, features and testimonials sections"
+```
+
+#### Multi-Registry Support
+Configurazione in `components.json`:
+```json
+{
+  "registries": {
+    "@acme": "https://acme.com/r/{name}.json",
+    "@internal": {
+      "url": "https://internal.company.com/{name}.json",
+      "headers": {
+        "Authorization": "Bearer ${REGISTRY_TOKEN}"
+      }
+    }
+  }
+}
+```
+
+#### Namespace Support
+```bash
+# Installa da registry specifico:
+shadcn add @internal/auth-form
+shadcn add @acme/hero-section
+```
+
+***
+
+## Task da Aggiungere a `.taskmaster/tasks/tasks.json`
+
+### Sezione: "Infrastructure Upgrade & MCP Dev Tools Setup"
+
+#### Task 1: Setup Next.js DevTools MCP
+**Priority:** HIGH  
+**Dependencies:** None  
+**Estimated Time:** 15 minuti
+
+**Descrizione:**
+Configurare Next.js DevTools MCP per i CLI agents (Claude Code, Droid) per abilitare upgrade automatizzato e diagnostics avanzati.
+
+**Subtasks:**
+1. Creare/aggiornare `.mcp.json` nella root del progetto
+2. Aggiungere configurazione `next-devtools` MCP server
+3. Testare connessione MCP con `npx next-devtools-mcp@latest`
+4. Verificare availability dei tool: `init`, `upgrade_nextjs_16`, `get_errors`
+5. (Opzionale) Aggiungere custom instructions in `.claude/instructions` per auto-init
+
+**Files Coinvolti:**
+- `.mcp.json` (create/update)
+- `.claude/instructions`o aggiungi una section dedicata in CLAUDE.md e AGENTS.md in root 
+- `package.json` (verificare compatibilità)
+
+**Acceptance Criteria:**
+- [x] MCP server risponde correttamente al test
+- [x] Tool `init` eseguito con successo
+- [x] Documentazione MCP accessibile dai CLI agents
+
+**Links:**
+- https://github.com/vercel/next-devtools-mcp
+- https://github.com/vercel/next-devtools-mcp#usage
+
+***
+
+#### Task 2: Backup Pre-Upgrade
+**Priority:** CRITICAL  
+**Dependencies:** Task 1  
+**Estimated Time:** 10 minuti
+
+**Descrizione:**
+Creare backup completo prima dell'upgrade Next.js 16 per rollback rapido in caso di problemi.
+
+**Subtasks:**
+1. Creare nuovo branch Git: `backup/pre-next16-upgrade`
+2. Commit stato attuale con messaggio dettagliato
+3. Tag release: `v1.0-next15-stable`
+4. Push backup branch su GitHub
+5. Documentare versioni dependencies attuali in `UPGRADE_LOG.md`
+
+**Files Coinvolti:**
+- `.git/` (branching)
+- `UPGRADE_LOG.md` (create)
+- `package.json` (reference)
+- `package-lock.json` (reference)
+
+**Acceptance Criteria:**
+- [x] Branch backup creato e pushed
+- [x] Tag release applicato
+- [x] Log delle dependencies correnti salvato
+
+***
+
+#### Task 3: Execute Next.js 16 Upgrade
+**Priority:** HIGH  
+**Dependencies:** Task 1, Task 2  
+**Estimated Time:** 30-45 minuti
+
+**Descrizione:**
+Eseguire upgrade automatizzato Next.js 15 → 16 usando il tool `upgrade_nextjs_16` del Next.js DevTools MCP.
+
+**Subtasks:**
+1. Inizializzare contesto DevTools: chiamare tool `init`
+2. Eseguire upgrade: tool `upgrade_nextjs_16`
+3. Applicare codemods automatici suggeriti
+4. Aggiornare manualmente codice flagged dai codemods
+5. Verificare `package.json` e dependencies aggiornate
+6. Eseguire `npm install` per sincronizzare lockfile
+7. Verificare breaking changes in documentazione ufficiale Next.js 16
+
+**Files Coinvolti:**
+- `package.json` (modified)
+- `package-lock.json` (modified)
+- `next.config.js` (potential modifications)
+- `src/**/*.ts(x)` (codemods applicati)
+- `UPGRADE_LOG.md` (update con breaking changes)
+
+**Breaking Changes Next.js 16 (da verificare):**
+- Async Request APIs (cookies, headers, params, searchParams)
+- Cache Components (nuovo pattern)
+- Metadata APIs (cambiamenti async)
+- Turbopack diventa default
+- App Router stabilizations
+
+**Acceptance Criteria:**
+- [x] `next` package aggiornato a versione 16.x
+- [x] Codemods applicati con successo
+- [x] `npm install` completato senza errori
+- [x] Breaking changes documentati in UPGRADE_LOG.md
+
+**Links:**
+- https://nextjs.org/docs/app/building-your-application/upgrading/version-16
+- https://github.com/vercel/next-devtools-mcp#upgrade_nextjs_16
+
+***
+
+#### Task 4: Post-Upgrade Diagnostics
+**Priority:** HIGH  
+**Dependencies:** Task 3  
+**Estimated Time:** 20-30 minuti
+
+**Descrizione:**
+Verificare lo stato dell'app post-upgrade usando i runtime diagnostics di Next.js DevTools MCP (disponibili solo con Next.js 16+).
+
+**Subtasks:**
+1. Avviare dev server: `npm run dev`
+2. Eseguire tool `get_errors` per rilevare build/runtime errors
+3. Verificare routes con tool `get_routes`
+4. Controllare Server Actions con tool `get_server_actions`
+5. Risolvere errori critici rilevati
+6. Eseguire type-check: `npm run type-check`
+7. Documentare errori e risoluzioni in `UPGRADE_LOG.md`
+
+**Files Coinvolti:**
+- Dev server (runtime)
+- `UPGRADE_LOG.md` (update)
+- File con errori da correggere (vari)
+
+**Tool MCP da Usare:**
+- `get_errors` - Lista errori build/runtime
+- `get_routes` - Verifica route configuration
+- `get_server_actions` - Controlla Server Actions
+- `get_dev_server_url` - Verifica dev server endpoint
+
+**Acceptance Criteria:**
+- [x] Dev server avviato senza errori critici
+- [x] Build completato con successo
+- [x] Type-check passato
+- [x] Tutti gli errori critici risolti e documentati
+
+***
+
+#### Task 5: Testing & Validation
+**Priority:** HIGH  
+**Dependencies:** Task 4  
+**Estimated Time:** 30-45 minuti
+
+**Descrizione:**
+Eseguire suite completa di test per validare funzionalità app post-upgrade.
+
+**Subtasks:**
+1. Unit tests: `npm run test`
+2. E2E tests: `npm run test:e2e`
+3. Test coverage: `npm run test:coverage`
+4. Visual regression testing (se configurato)
+5. Test manuale user flows critici
+6. Verificare Inngest functions funzionano correttamente
+7. Test integrazione Inngest realtime channels
+8. Verificare database migrations (Prisma)
+
+**Files Coinvolti:**
+- `src/__tests__/**/*.test.ts(x)` (tests)
+- `playwright.config.ts` (E2E config)
+- `jest.config.js` (unit tests config)
+- `src/inngest/**/*` (Inngest functions)
+
+**Test Checklist:**
+- [x] Unit tests passed
+- [x] E2E tests passed
+- [x] Inngest orchestrator workflow funzionante
+- [x] Channels realtime funzionanti
+- [x] Database operations funzionanti
+- [x] Coverage threshold raggiunto (se configurato)
+
+***
+
+#### Task 6: Setup shadcn MCP Server
+**Priority:** MEDIUM  
+**Dependencies:** Task 5  
+**Estimated Time:** 15 minuti
+
+**Descrizione:**
+Configurare shadcn MCP server per gestione automatizzata componenti UI via natural language nei CLI agents.
+
+**Subtasks:**
+1. Aggiungere configurazione `shadcn` in `.mcp.json`
+2. Verificare `components.json` esistente nella root
+3. Testare connessione MCP con `npx shadcn@latest mcp`
+4. Verificare tool disponibili: `list-registries`, `list-components`, `add-component`
+5. (Opzionale) Configurare registry privati in `components.json`
+6. Testare installazione componente: "Add button component"
+
+**Files Coinvolti:**
+- `.mcp.json` (update)
+- `components.json` (verificare esistenza)
+- `src/components/ui/` (test installation)
+
+**Acceptance Criteria:**
+- [x] MCP server shadcn risponde correttamente
+- [x] Tool `list-components` funziona
+- [x] Test installazione componente completato
+- [x] Natural language commands funzionanti
+
+**Links:**
+- https://ui.shadcn.com/docs/mcp
+- https://ui.shadcn.com/docs/cli
+
+***
+
+#### Task 7: Documentation & Knowledge Sharing
+**Priority:** MEDIUM  
+**Dependencies:** Task 6  
+**Estimated Time:** 20 minuti
+
+**Descrizione:**
+Aggiornare documentazione progetto con dettagli upgrade Next.js 16 e nuovi MCP dev tools disponibili.
+
+**Subtasks:**
+1. Aggiornare `README.md` con versione Next.js 16
+2. Documentare nuovi MCP servers disponibili
+3. Creare/aggiornare `docs/MCP_SETUP.md` con guide configurazione
+4. Aggiornare `docs/DEVELOPMENT.md` con workflow Next.js DevTools
+5. Aggiungere esempi comandi natural language shadcn
+6. Documentare breaking changes risolti in `UPGRADE_LOG.md`
+7. Update CHANGELOG.md con versione release
+
+**Files Coinvolti:**
+- `README.md` (update)
+- `docs/MCP_SETUP.md` (create/update)
+- `docs/DEVELOPMENT.md` (update)
+- `UPGRADE_LOG.md` (finalize)
+- `CHANGELOG.md` (update)
+
+**Sezioni da Aggiungere:**
+- MCP Servers Available (Next.js DevTools, shadcn)
+- Next.js 16 Migration Notes
+- CLI Agents Integration Guide
+- Troubleshooting Common Issues
+
+**Acceptance Criteria:**
+- [x] Documentazione aggiornata e completa
+- [x] Guide MCP setup chiare
+- [x] Esempi pratici inclusi
+- [x] Breaking changes documentati
+
+***
+
+#### Task 8: Production Deployment Preparation
+**Priority:** MEDIUM  
+**Dependencies:** Task 7  
+**Estimated Time:** 30 minuti
+
+**Descrizione:**
+Preparare app per deployment production con Next.js 16, verificando build ottimizzato e configurazioni Vercel.
+
+**Subtasks:**
+1. Eseguire production build: `npm run build`
+2. Analizzare bundle size e ottimizzazioni
+3. Verificare environment variables Vercel
+4. Testare build locally: `npm run start`
+5. Verificare configurazione Turbopack (se abilitato)
+6. Update `.env.example` se necessario
+7. Verificare Inngest production endpoint
+8. Preparare deploy preview su Vercel
+
+**Files Coinvolti:**
+- `.env.example` (verificare)
+- `next.config.js` (production optimizations)
+- `.vercel/` (deployment config)
+- `vercel.json` (se presente)
+
+**Production Checklist:**
+- [x] Production build completato senza errori
+- [x] Bundle size analizzato e ottimizzato
+- [x] Environment variables verificate
+- [x] Inngest production endpoint configurato
+- [x] Deploy preview testato
+
+***
+
+## Configurazione File Completa
+
+### `.mcp.json` (Root del Progetto)
+```json
+{
+  "mcpServers": {
+    "next-devtools": {
+      "command": "npx",
+      "args": ["-y", "next-devtools-mcp@latest"]
+    },
+    "shadcn": {
+      "command": "npx",
+      "args": ["shadcn@latest", "mcp"]
+    }
+  }
+}
+```
+
+### `.claude/instructions` (Optional - Auto-init)
+```
+When working with Next.js projects, always call the Next.js DevTools 'init' tool first to establish proper context and ensure access to official Next.js 16 documentation.
+
+For UI component management, use natural language commands with the shadcn MCP server to add, search, or manage components from the registry.
+```
+
+### `UPGRADE_LOG.md` (Template da Creare)
+```markdown
+# Next.js 16 Upgrade Log
+
+## Pre-Upgrade State
+- **Next.js Version:** 15.5.7
+- **Date:** [TIMESTAMP]
+- **Backup Branch:** backup/pre-next16-upgrade
+- **Backup Tag:** v1.0-next15-stable
+
+## Dependencies Before Upgrade
+- next: 15.5.7
+- react: 19.1.1
+- react-dom: 19.1.1
+- [altre dependencies rilevanti]
+
+## Upgrade Process
+### Codemods Applied
+- [Lista codemods automatici]
+
+### Manual Changes Required
+- [Modifiche manuali necessarie]
+
+## Breaking Changes Encountered
+### 1. [Breaking Change Title]
+- **Description:** [cosa è cambiato]
+- **Fix Applied:** [come risolto]
+- **Files Modified:** [file coinvolti]
+
+## Post-Upgrade State
+- **Next.js Version:** 16.x.x
+- **Date:** [TIMESTAMP]
+- **Build Status:** ✅ Success
+- **Test Status:** ✅ All Passed
+
+## Performance Impact
+- **Bundle Size:** Before [X MB] → After [Y MB]
+- **Build Time:** Before [X s] → After [Y s]
+- **Dev Server Startup:** Before [X s] → After [Y s]
+
+## Notes
+[Osservazioni generali e raccomandazioni]
+```
+
+***
+
+## Ordine di Esecuzione Consigliato
+
+1. **Task 1** - Setup Next.js DevTools MCP (prerequisito)
+2. **Task 2** - Backup Pre-Upgrade (safety)
+3. **Task 3** - Execute Upgrade (core upgrade)
+4. **Task 4** - Post-Upgrade Diagnostics (verifiche)
+5. **Task 5** - Testing & Validation (quality assurance)
+6. **Task 6** - Setup shadcn MCP (dev experience)
+7. **Task 7** - Documentation (knowledge sharing)
+8. **Task 8** - Production Prep (deployment ready)
+
+***
+
+## Rollback Plan (In Caso di Problemi Critici)
+
+Se l'upgrade Next.js 16 causa problemi irrisolvibili:
+
+```bash
+# 1. Checkout backup branch
+git checkout backup/pre-next16-upgrade
+
+# 2. Create rollback branch
+git checkout -b rollback/next15-restore
+
+# 3. Restore dependencies
+npm install
+
+# 4. Test rollback state
+npm run dev
+npm run test
+
+# 5. Document rollback reason
+# Aggiungere nota in UPGRADE_LOG.md con motivo rollback
+```
+
+***
+
+## Risorse Aggiuntive
+
+### Next.js 16
+- Official Upgrade Guide: https://nextjs.org/docs/app/building-your-application/upgrading/version-16
+- Release Notes: https://nextjs.org/blog/next-16
+- Breaking Changes: https://nextjs.org/docs/app/building-your-application/upgrading/version-16#breaking-changes
+
+### MCP Servers
+- Next.js DevTools MCP: https://github.com/vercel/next-devtools-mcp
+- shadcn MCP: https://ui.shadcn.com/docs/mcp
+- MCP Protocol Spec: https://spec.modelcontextprotocol.io/
+
+### Testing
+- Next.js Testing: https://nextjs.org/docs/app/building-your-application/testing
+- Playwright Docs: https://playwright.dev/
+- Jest Docs: https://jestjs.io/
+
+***
+
+Procedi con l'aggiornamento di `.taskmaster/tasks/tasks.json` aggiungendo questi task nella sezione appropriata. Mantieni la struttura JSON esistente e aggiungi questa nuova sezione "Infrastructure Upgrade " come categoria principale con gli 8 task sopra dettagliati.

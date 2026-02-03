@@ -1,0 +1,269 @@
+**quando TU (user) devi creare manualmente** le risorse cloud vs **quando possono farlo gli AI agents da CLI**.
+
+## 🎯 SETUP CLOUD PLATFORMS: CHI FA COSA
+
+### ✅ **TU DEVI CREARE MANUALMENTE** (Setup Iniziale - 1 volta)
+
+Questi servizi **richiedono interazione web + pagamento** e **NON possono essere automatizzati da CLI agents**:
+
+#### 1. **Neon PostgreSQL** 🟢
+- **Cosa fare TU**:
+  - Vai su https://neon.tech
+  - Crea account (GitHub OAuth)
+  - Crea **1 progetto** "research-publishing-suite"
+  - Crea **3 branch**: `main` (production), `preview`, `dev`
+  - Copia le connection strings
+
+- **Cosa NON può fare agent da CLI**:
+  - ❌ Creare account
+  - ❌ Creare progetto
+  - ❌ Gestire billing
+
+- **Cosa PUÒ fare agent con Prisma CLI** (dopo che hai setup):
+  - ✅ `npx prisma migrate dev` - Creare/applicare migrations
+  - ✅ `npx prisma db push` - Push schema changes
+  - ✅ `npx prisma studio` - Aprire DB GUI
+  - ✅ `npx prisma generate` - Generare Prisma Client
+
+**TUO SETUP:**
+```bash
+# 1. Nel browser: crea Neon project
+# 2. Copia connection string
+# 3. In Codespace:
+echo "DATABASE_URL=postgresql://user:pass@ep-xxx.neon.tech/research" >> .env.local
+
+# 4. Agent PUÒ fare (dopo il tuo setup):
+npx prisma migrate dev --name init
+npx prisma db push
+```
+
+#### 2. **Inngest Cloud** 🔵
+- **Cosa fare TU**:
+  - Vai su https://app.inngest.com
+  - Crea account (GitHub OAuth)
+  - Crea **1 app** "research-publishing-suite"
+  - Crea **3 environments**: Production, Preview, Development
+  - Copia Event Key + Signing Key per ogni environment
+
+- **Cosa NON può fare agent da CLI**:
+  - ❌ Creare account
+  - ❌ Creare app
+  - ❌ Generare keys
+
+- **Cosa PUÒ fare agent/Vercel Integration**:
+  - ✅ `curl -X PUT https://your-app.com/api/inngest` - Sync funzioni
+  - ✅ Vercel Integration auto-sync su deploy
+  - ✅ Inngest CLI per local dev: `npx inngest-cli dev`
+
+**TUO SETUP:**
+```bash
+# 1. Nel browser: crea Inngest app + environments
+# 2. Copia keys
+# 3. In Codespace:
+echo "INNGEST_EVENT_KEY=your_event_key" >> .env.local
+echo "INNGEST_SIGNING_KEY=signkey_xxx" >> .env.local
+
+# 4. Agent PUÒ fare (dopo il tuo setup):
+npm run inngestdev  # Local dev server
+# Sync automatico via Vercel Integration (dopo primo deploy)
+```
+
+#### 3. **Pinecone** 🟣
+- **Cosa fare TU**:
+  - Vai su https://www.pinecone.io
+  - Crea account
+  - Crea **1 index** "research-suite-vectors"
+  - Config: dimension=1536 (OpenAI embeddings), metric=cosine
+  - Copia API key
+
+- **Cosa NON può fare agent da CLI**:
+  - ❌ Creare account
+  - ❌ Creare index (primo setup)
+
+- **Cosa PUÒ fare agent con Pinecone SDK**:
+  - ✅ Upsert vectors
+  - ✅ Query similarity search
+  - ✅ Delete vectors
+  - ✅ List/describe indexes
+
+**TUO SETUP:**
+```bash
+# 1. Nel browser: crea Pinecone index
+# 2. Copia API key
+# 3. In Codespace:
+echo "PINECONE_API_KEY=your_key" >> .env.local
+echo "PINECONE_INDEX_NAME=research-suite-vectors" >> .env.local
+
+# 4. Agent PUÒ fare (dopo il tuo setup):
+npm run upload-pdf  # Script che usa Pinecone SDK
+npm run test-pinecone
+```
+
+#### 4. **Vercel** 🔺
+- **Cosa fare TU**:
+  - Vai su https://vercel.com
+  - Connetti GitHub repo
+  - Primo deploy manuale (click "Import")
+  - Installa Inngest Integration (optional ma consigliato)
+  - Configura Environment Variables nel dashboard
+
+- **Cosa NON può fare agent da CLI**:
+  - ❌ Primo setup + connect GitHub
+
+- **Cosa PUÒ fare agent con Vercel CLI**:
+  - ✅ `vercel` - Deploy da CLI (dopo primo setup)
+  - ✅ `vercel env pull` - Pull env vars
+  - ✅ `vercel logs` - Vedere logs
+
+**TUO SETUP:**
+```bash
+# 1. Nel browser: Import GitHub repo su Vercel
+# 2. Primo deploy
+# 3. Configura env vars nel dashboard
+# 4. Install Inngest Integration
+
+# Agent PUÒ fare (dopo il tuo setup):
+npm install -g vercel
+vercel login
+vercel  # Deploy
+```
+
+***
+
+### ⚠️ **PRISMA** - Caso Speciale
+
+**Prisma NON è un servizio cloud** - è un ORM locale che si connette a Neon.
+
+- **Cosa fare TU**:
+  - ✅ Già configurato in `package.json` [github](https://github.com/alchimie-di-circe/Inngest-RESEARCH---Next-15/blob/main/package.json)
+  - ✅ Schema già in `prisma/schema.prisma` (da creare)
+
+- **Cosa PUÒ fare agent completamente**:
+  - ✅ Creare/modificare schema
+  - ✅ Generare migrations
+  - ✅ Push al database
+  - ✅ Seed data
+  - ✅ Tutto tramite Prisma CLI
+
+**Agent setup (TUTTO automatizzabile):**
+```bash
+# Agent può fare tutto questo:
+npx prisma init --datasource-provider postgresql
+npx prisma migrate dev --name init
+npx prisma generate
+npx prisma db push
+npx prisma studio
+```
+
+***
+
+## 📋 CHECKLIST: SETUP ORDINE CORRETTO
+
+### 🟢 **STEP 1: Setup Cloud Accounts (TU - 30 min)**
+
+```bash
+# Crea account e progetti:
+1. [ ] Neon: https://neon.tech
+   → Crea progetto "research-publishing-suite"
+   → Crea 3 branch: main, preview, dev
+   → Copia connection strings
+
+2. [ ] Inngest: https://app.inngest.com
+   → Crea app "research-publishing-suite"
+   → Crea 3 environments: Production, Preview, Development
+   → Copia keys per ogni environment
+
+3. [ ] Pinecone: https://www.pinecone.io
+   → Crea index "research-suite-vectors"
+   → Config: dimension=1536, metric=cosine
+   → Copia API key
+
+4. [ ] Vercel: https://vercel.com
+   → Import GitHub repo
+   → Primo deploy
+   → Install Inngest Integration
+```
+
+### 🔵 **STEP 2: Configure .env.local (TU - 5 min)**
+
+```bash
+# In Codespace, crea .env.local:
+cp .env.example .env.local
+
+# Inserisci le keys copiate da Step 1:
+DATABASE_URL=postgresql://...neon.tech/research
+INNGEST_EVENT_KEY=your_event_key
+INNGEST_SIGNING_KEY=signkey_xxx
+PINECONE_API_KEY=your_pinecone_key
+ANTHROPIC_API_KEY=sk-ant-xxx
+```
+
+### 🟣 **STEP 3: Agent Setup (AGENT PUÒ FARE - 10 min)**
+
+```bash
+# Ora l'agent PUÒ fare tutto questo:
+
+# 1. Prisma migrations
+npx prisma migrate dev --name init
+
+# 2. Seed database
+npx prisma db seed
+
+# 3. Test connections
+npm run test-pinecone
+curl http://localhost:3000/api/inngest
+
+# 4. Start development
+npm run devall  # Next.js + Inngest Dev Server
+```
+
+***
+
+## 🤖 **COSA POSSONO FARE GLI AI AGENTS DA CLI**
+
+Una volta fatto il **setup iniziale** (Step 1-2), gli agents **possono automatizzare**:
+
+### ✅ **Completamente Automatizzabile**
+- **Prisma**: Tutte le operazioni (migrations, schema, seed)
+- **Inngest Dev Server**: Start/stop, invoke functions
+- **Pinecone SDK**: Upload vectors, queries, delete
+- **Vercel CLI**: Deploy, logs, env management
+- **Git operations**: Commit, push, PR creation
+- **Testing**: Jest, Playwright, TestSprite MCP
+
+### ❌ **NON Automatizzabile (Richiede Browser)**
+- Creare account iniziali
+- Primo setup progetti/app
+- Configurare billing
+- Installare Vercel Integrations (prima volta)
+- Generare API keys
+
+***
+
+## 💡 **RACCOMANDAZIONE FINALE**
+
+**Il tuo workflow ideale:**
+
+```
+┌─────────────────────────────────────────────┐
+│ STEP 1 (TU - 1 volta): Setup Cloud         │
+│ - Neon: crea progetto + branches           │
+│ - Inngest: crea app + environments         │
+│ - Pinecone: crea index                     │
+│ - Vercel: connect GitHub + primo deploy   │
+│ - Copia tutte le keys in .env.local        │
+└─────────────────────────────────────────────┘
+              ↓
+┌─────────────────────────────────────────────┐
+│ STEP 2 (AGENT): Development & Operations   │
+│ ✅ Prisma migrations automatiche           │
+│ ✅ Inngest functions auto-sync             │
+│ ✅ Pinecone vector operations              │
+│ ✅ Vercel deploys da CLI                   │
+│ ✅ Testing completo                        │
+└─────────────────────────────────────────────┘
+```
+
+**Tempo totale**:
+- TUO setup iniziale: **~45 minuti** (1 volta sola)
+- Agent operations: **Automatico per sempre** ✅

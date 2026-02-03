@@ -63,7 +63,7 @@ Quando clicchi “Create codespace on main” GitHub crea una VM, clona **tutta 
 
 
 ---
-
+tags: [inngest, patterns, advanced, outdated]
 # quindi se volgio un codespace su cui poter tornare per andare avanti con modifiche cosa mi conviene fare? clonare la repo prima? o non è necessario? e il codespace persiste giusto? oltrtutto sono github pro
 
 Non serve clonare la repo prima: il flusso “normale” è creare un codespace dalla repo e poi tornarci tutte le volte che vuoi, finché non viene cancellato per retention o manualmente.[^2_1][^2_2]

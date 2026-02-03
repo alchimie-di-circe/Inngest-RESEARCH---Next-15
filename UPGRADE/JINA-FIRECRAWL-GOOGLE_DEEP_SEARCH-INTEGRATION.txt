@@ -1,0 +1,319 @@
+Ti preparo un prompt dettagliato per Claude Code per implementare la modifica della tasklist e l'integrazione degli MCP servers con Inngest AgentKit. Ecco il prompt completo:
+
+***
+
+## Prompt per Claude Code: Aggiornamento Tasklist e Integrazione MCP per Deep Research AgentKit
+
+### Contesto
+Sto sviluppando un'app di content marketing basata su Inngest AgentKit con 2 moduli:
+1. **Deep Research AgentKit** - per recuperare informazioni aggiornate e accurate dalla rete
+2. **Modulo Content Marketing** (da sviluppare successivamente)
+
+L'app parte da un template che aveva configurazioni per arXiv e GitHub MCP, ma ora dobbiamo aggiornare per un caso d'uso di deep research con fonti web aggiornate.
+
+### Obiettivo
+Aggiorna il file `.taskmaster/tasks/tasks.json` e implementa l'integrazione degli MCP servers seguenti nella mia app Inngest AgentKit:
+
+1. **Jina.AI Remote MCP** - per web scraping e ricerca [github](https://github.com/alchimie-di-circe/Inngest-RESEARCH---Next-15/blob/main/.taskmaster/tasks/tasks.json)
+2. **Google Deep Research API** - per ricerca approfondita [docs.firecrawl](https://docs.firecrawl.dev/mcp-server)
+3. **Firecrawl MCP** - per crawling e scraping avanzato [github](https://github.com/jina-ai/MCP)
+4. **Reddit** - mantieni se presente, importante per tutti i tipi di ricerche
+
+### Documentazione di Riferimento
+
+#### 1. Jina.AI Remote MCP Configuration
+```json
+{
+  "mcpServers": {
+    "jina-mcp-server": {
+      "url": "https://mcp.jina.ai/v1",
+      "headers": {
+        "Authorization": "Bearer ${JINA_API_KEY}"
+      }
+    }
+  }
+}
+```
+
+**Strumenti disponibili da Jina MCP:** [github](https://github.com/alchimie-di-circe/Inngest-RESEARCH---Next-15/blob/main/.taskmaster/tasks/tasks.json)
+- `read_url` - Estrae contenuto web come markdown
+- `search_web` - Ricerca web per informazioni attuali
+- `search_arxiv` - Ricerca paper accademici
+- `parallel_search_web` - Ricerche parallele per copertura completa
+- `parallel_read_url` - Lettura parallela di più URL
+- `sort_by_relevance` - Riordina documenti per rilevanza
+- `primer` - Informazioni contestuali per risposte localizzate
+
+**Filtraggio Tools** (per ottimizzare context window):
+```
+https://mcp.jina.ai/v1?exclude_tags=parallel
+https://mcp.jina.ai/v1?include_tags=search,read
+```
+
+#### 2. Firecrawl MCP Configuration
+```json
+{
+  "mcpServers": {
+    "firecrawl": {
+      "command": "npx",
+      "args": ["-y", "firecrawl-mcp"],
+      "env": {
+        "FIRECRAWL_API_KEY": "${FIRECRAWL_API_KEY}"
+      }
+    }
+  }
+}
+```
+
+**Strumenti disponibili da Firecrawl:** [github](https://github.com/jina-ai/MCP)
+- `firecrawl_scrape` - Scraping singolo URL con opzioni avanzate
+- `firecrawl_batch_scrape` - Scraping batch di più URL
+- `firecrawl_map` - Mappa tutti gli URL di un sito
+- `firecrawl_search` - Ricerca web con estrazione contenuti
+- `firecrawl_crawl` - Crawling asincrono con configurazione depth
+- `firecrawl_extract` - Estrazione strutturata con LLM
+
+**Configurazione retry e monitoring:**
+```typescript
+env: {
+  FIRECRAWL_API_KEY: "your-api-key",
+  FIRECRAWL_RETRY_MAX_ATTEMPTS: "5",
+  FIRECRAWL_RETRY_INITIAL_DELAY: "2000",
+  FIRECRAWL_CREDIT_WARNING_THRESHOLD: "2000"
+}
+```
+
+#### 3. Google Deep Research API
+Note: Google Deep Research API utilizza l'Interactions API ed è un agent autonomo, non un MCP server standard. Dovrai creare un wrapper custom per integrarlo come tool. [docs.firecrawl](https://docs.firecrawl.dev/mcp-server)
+
+**Esempio di implementazione:**
+```typescript
+import { genai } from 'google';
+
+const deepResearchTool = {
+  name: "google_deep_research",
+  description: "Esegue ricerca approfondita multi-step usando Google Deep Research Agent",
+  parameters: {
+    query: { type: "string", description: "Query di ricerca approfondita" },
+    format: { type: "string", enum: ["technical", "executive", "casual"] }
+  },
+  handler: async ({ query, format }) => {
+    const client = genai.Client();
+    const interaction = await client.interactions.create({
+      input: query,
+      agent: "deep-research-pro-preview-12-2025",
+      background: true
+    });
+    // Polling per risultati...
+  }
+};
+```
+
+### Integrazione con Inngest AgentKit
+
+#### Configurazione MCP Diretta
+Secondo la documentazione Inngest AgentKit, configura gli MCP servers così: [ai.google](https://ai.google.dev/gemini-api/docs/deep-research)
+
+```typescript
+import { createAgent } from "@inngest/agent-kit";
+
+const researchAgent = createAgent({
+  name: "deep-research-agent",
+  system: `You are a deep research assistant specialized in gathering 
+  accurate and up-to-date information from the web. You have access to 
+  multiple search and scraping tools to conduct comprehensive research.`,
+  
+  mcpServers: [
+    {
+      name: "jina",
+      transport: {
+        type: "sse", // Streamable HTTP
+        url: "https://mcp.jina.ai/v1?include_tags=search,read",
+        requestInit: {
+          headers: {
+            "Authorization": `Bearer ${process.env.JINA_API_KEY}`
+          }
+        }
+      }
+    },
+    {
+      name: "firecrawl",
+      transport: {
+        type: "sse",
+        url: "https://mcp.firecrawl.dev/v2/mcp",
+        requestInit: {
+          headers: {
+            "Authorization": `Bearer ${process.env.FIRECRAWL_API_KEY}`
+          }
+        }
+      }
+    }
+  ],
+  
+  // Tools custom aggiuntivi
+  tools: [
+    // Aggiungi qui il wrapper per Google Deep Research
+    // e mantieni Reddit se presente
+  ]
+});
+```
+
+### Opzioni Avanzate di Integrazione
+
+#### Opzione 1: Hub MCP Composio
+Composio fornisce un hub centralizzato per gestire multiple connessioni MCP. Vantaggi: [agentkit.inngest](https://agentkit.inngest.com/advanced-patterns/mcp)
+- Gestione centralizzata delle credenziali
+- Rate limiting automatico
+- Monitoring e analytics
+- Caching intelligente
+
+#### Opzione 2: MCP-USE per Ottimizzazione
+MCP-USE è un framework che ottimizza l'utilizzo degli MCP servers:
+- **Connection pooling** - Riutilizzo connessioni per ridurre latency
+- **Query batching** - Aggregazione richieste simili
+- **Smart caching** - Cache dei risultati per query ripetute
+- **Load balancing** - Distribuzione del carico tra server
+
+### Task Specifici da Implementare
+
+1. **Aggiorna `.taskmaster/tasks/tasks.json`:**
+   - Rimuovi task relativi a arXiv e GitHub template
+   - Aggiungi task per integrazione Jina MCP
+   - Aggiungi task per integrazione Firecrawl MCP
+   - Aggiungi task per wrapper Google Deep Research
+   - Mantieni Reddit se presente
+   - Aggiungi task per testing e validazione
+
+2. **Crea file di configurazione MCP:**
+   - File `.env.example` con le API keys necessarie
+   - File di configurazione TypeScript per gli MCP servers
+   - Script di inizializzazione per verificare connessioni
+
+3. **Implementa il Deep Research Agent:**
+   - Agent principale con tutti gli MCP configurati
+   - Router per selezionare il tool appropriato in base alla query
+   - Error handling e retry logic
+   - Logging e monitoring
+
+4. **Testing e Validazione:**
+   - Unit tests per ogni MCP integration
+   - Integration tests per il flow completo
+   - Performance benchmarks
+   - Documentazione delle API keys necessarie
+
+5. **Documentazione:**
+   - README aggiornato con setup instructions
+   - Guida all'uso degli MCP servers
+   - Esempi di query e risposte attese
+   - Troubleshooting comune
+
+### Considerazioni Tecniche
+
+**Rate Limiting e Costi:** [github](https://github.com/jina-ai/MCP)
+- Firecrawl: configurare retry con exponential backoff
+- Jina: monitorare credit usage (warning a 1000, critical a 100)
+- Google Deep Research: ~$2-5 per task complesso [docs.firecrawl](https://docs.firecrawl.dev/mcp-server)
+
+**Ottimizzazioni Context Window:** [github](https://github.com/alchimie-di-circe/Inngest-RESEARCH---Next-15/blob/main/.taskmaster/tasks/tasks.json)
+- Usa tool filtering per Jina: `?include_tags=search,read` invece di tutti i 19 tools
+- Implementa caching per risultati frequenti
+- Considera MCP-USE per query batching
+
+**Security:**
+- Non hardcodare API keys nel codice
+- Usa variabili d'ambiente
+- Implementa validation degli input
+- Rate limiting a livello applicazione
+
+### Output Atteso
+
+Alla fine dell'implementazione, la mia app deve:
+1. ✅ Avere `.taskmaster/tasks/tasks.json` aggiornato con tutti i nuovi task
+2. ✅ Supportare ricerche web approfondite tramite Jina MCP
+3. ✅ Supportare scraping e crawling avanzato tramite Firecrawl
+4. ✅ Avere wrapper funzionante per Google Deep Research
+5. ✅ Mantenere supporto Reddit se già presente
+6. ✅ Avere documentazione completa e test coverage
+7. ✅ Essere pronto per deployment con tutte le configurazioni necessarie
+
+### Struttura File Suggerita
+```
+/src
+  /agents
+    deep-research-agent.ts
+  /mcp
+    jina-config.ts
+    firecrawl-config.ts
+    google-deep-research-wrapper.ts
+  /tools
+    custom-tools.ts
+  /utils
+    mcp-helpers.ts
+/.taskmaster
+  /tasks
+    tasks.json (AGGIORNATO)
+.env.example
+README.md (AGGIORNATO)
+```
+
+***
+
+Procedi con l'implementazione seguendo le best practices di Inngest AgentKit e la documentazione ufficiale degli MCP servers fornita. Prioritizza la modularità del codice e la facilità di testing.
+
+Ecco l'elenco completo dei link allegati e link utili per l'upgrade della tua app:
+
+## Link Allegati
+
+### MCP Servers - Documentazione Ufficiale
+1. **Jina.AI Remote MCP** - https://github.com/jina-ai/MCP [github](https://github.com/alchimie-di-circe/Inngest-RESEARCH---Next-15/blob/main/.taskmaster/tasks/tasks.json)
+2. **Firecrawl MCP Server** - https://docs.firecrawl.dev/mcp-server [github](https://github.com/jina-ai/MCP)
+3. **Google Deep Research API** - https://ai.google.dev/gemini-api/docs/deep-research [docs.firecrawl](https://docs.firecrawl.dev/mcp-server)
+4. **Inngest AgentKit - MCP Integration** - https://agentkit.inngest.com/advanced-patterns/mcp [ai.google](https://ai.google.dev/gemini-api/docs/deep-research)
+
+### Hub e Ottimizzazione
+5. **Composio MCP Hub** - (allegato file) [agentkit.inngest](https://agentkit.inngest.com/advanced-patterns/mcp)
+6. **MCP-USE Framework** - (allegato file)
+
+## Link Utili Aggiuntivi per l'Upgrade
+
+### Inngest AgentKit Core
+- **Getting Started** - https://agentkit.inngest.com/getting-started
+- **Agent Configuration** - https://agentkit.inngest.com/agents
+- **Tools & Functions** - https://agentkit.inngest.com/tools
+- **Network API** - https://agentkit.inngest.com/network
+
+### MCP Protocol
+- **MCP Specification** - https://spec.modelcontextprotocol.io/
+- **MCP Servers Repository** - https://github.com/modelcontextprotocol/servers
+- **MCP TypeScript SDK** - https://github.com/modelcontextprotocol/typescript-sdk
+
+### Jina AI Resources
+- **Jina AI API Docs** - https://jina.ai/reader/
+- **Jina Search API** - https://jina.ai/search/
+- **Jina MCP Examples** - https://github.com/jina-ai/MCP/tree/main/examples
+
+### Firecrawl Resources
+- **Firecrawl API Docs** - https://docs.firecrawl.dev/
+- **Firecrawl SDKs** - https://docs.firecrawl.dev/sdks/overview
+- **Firecrawl Pricing** - https://www.firecrawl.dev/pricing
+
+### Google AI
+- **Gemini API Overview** - https://ai.google.dev/gemini-api/docs
+- **Interactions API** - https://ai.google.dev/gemini-api/docs/interactions
+- **Google AI Studio** - https://aistudio.google.com/
+
+### Testing & Monitoring
+- **Inngest Dev Server** - https://www.inngest.com/docs/local-development
+- **MCP Inspector** - https://github.com/modelcontextprotocol/inspector
+- **Inngest Dashboard** - https://app.inngest.com/
+
+### Reddit API (se mantieni)
+- **Reddit API Docs** - https://www.reddit.com/dev/api/
+- **PRAW (Python Reddit API)** - https://praw.readthedocs.io/
+
+### Deployment & Production
+- **Inngest Deployment Guide** - https://www.inngest.com/docs/deploy
+- **Vercel Integration** - https://vercel.com/integrations/inngest
+- **Environment Variables Best Practices** - https://www.inngest.com/docs/guides/environment-variables
+
+Questi link ti forniranno tutta la documentazione necessaria per completare l'upgrade del tuo Deep Research AgentKit con successo!

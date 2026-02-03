@@ -69,6 +69,7 @@ This project is a **Research & Publishing Suite** designed to unify deep researc
 *   `prisma`: Database schema definition.
 *   `.taskmaster`: Project management and task definitions.
 *   `.claude/knowledge`: Documentation on architecture and patterns.
+    *   `prisma/`: Prisma & Neon specific guides and best practices.
 
 ### Workflow
 1.  **Deep Research:** Multi-step research orchestration.

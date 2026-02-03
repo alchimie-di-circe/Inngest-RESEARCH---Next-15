@@ -1,0 +1,72 @@
+name: Claude Code
+
+on:
+  issue_comment:
+    types: [created]
+  pull_request_review_comment:
+    types: [created]
+  issues:
+    types: [opened, assigned]
+  pull_request_review:
+    types: [submitted]
+
+jobs:
+  claude:
+    if: |
+      (github.event_name == 'issue_comment' && contains(github.event.comment.body, '@claude')) ||
+      (github.event_name == 'pull_request_review_comment' && contains(github.event.comment.body, '@claude')) ||
+      (github.event_name == 'pull_request_review' && contains(github.event.review.body, '@claude')) ||
+      (github.event_name == 'issues' && (contains(github.event.issue.body, '@claude') || contains(github.event.issue.title, '@claude')))
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+      issues: write
+      id-token: write
+      actions: read # Required for Claude to read CI results on PRs
+    steps:
+      - name: Determine checkout ref
+        id: checkout-ref
+        run: |
+          # For pull_request_review and pull_request_review_comment, use PR head ref
+          if [[ "$EVENT_NAME" == "pull_request_review" || "$EVENT_NAME" == "pull_request_review_comment" ]]; then
+            printf 'ref=%s\n' "$PR_HEAD_REF" >> "$GITHUB_OUTPUT"
+          # For issue_comment on a PR, fetch the PR head ref via API
+          elif [[ "$EVENT_NAME" == "issue_comment" && -n "$IS_PR" ]]; then
+            PR_HEAD=$(gh pr view "$ISSUE_NUMBER" --json headRefName -q '.headRefName')
+            printf 'ref=%s\n' "$PR_HEAD" >> "$GITHUB_OUTPUT"
+          # For issues or issue_comment not on a PR, use default ref
+          else
+            printf 'ref=%s\n' "$DEFAULT_REF" >> "$GITHUB_OUTPUT"
+          fi
+        env:
+          GH_TOKEN: ${{ github.token }}
+          EVENT_NAME: ${{ github.event_name }}
+          PR_HEAD_REF: ${{ github.event.pull_request.head.ref }}
+          DEFAULT_REF: ${{ github.ref }}
+          IS_PR: ${{ github.event.issue.pull_request }}
+          ISSUE_NUMBER: ${{ github.event.issue.number }}
+
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ steps.checkout-ref.outputs.ref }}
+          fetch-depth: 1
+
+      - name: Run Claude Code
+        id: claude
+        uses: anthropics/claude-code-action@f64219702d7454cf29fe32a74104be6ed43dc637 # pinned to v1.0.34
+        with:
+          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+
+          # This is an optional setting that allows Claude to read CI results on PRs
+          additional_permissions: |
+            actions: read
+
+          # Optional: Give a custom prompt to Claude. If this is not specified, Claude will perform the instructions specified in the comment that tagged it.
+          # prompt: 'Update the pull request description to include a summary of changes.'
+
+          # Optional: Add claude_args to customize behavior and configuration
+          # See https://github.com/anthropics/claude-code-action/blob/main/docs/usage.md
+          # or https://code.claude.com/docs/en/cli-reference for available options
+          # claude_args: '--allowed-tools Bash(gh pr:*)'

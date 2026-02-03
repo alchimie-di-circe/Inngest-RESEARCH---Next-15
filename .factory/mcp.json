@@ -1,37 +1,36 @@
 {
   "mcpServers": {
-    "neon": {
-      "type": "stdio",
-      "command": "npx",
-      "args": ["-y", "@neondatabase/mcp-server-neon"],
-      "env": {
-        "NEON_API_KEY": "op://AI DEV/NEON API key/credential"
-      }
-    },
-    "prisma": {
-      "type": "stdio",
-      "command": "npx",
-      "args": ["-y", "@prisma/mcp-server"],
-      "env": {
-        "DATABASE_URL": "op://AI DEV/DATABASE_URL/credential"
-      }
-    },
     "task-master-ai": {
       "type": "stdio",
       "command": "npx",
       "args": ["-y", "task-master-ai"],
       "env": {
-        "TASK_MASTER_TOOLS": "core",
-        "ANTHROPIC_API_KEY": "op://AI DEV/ANTHROPIC_API_KEY/credential",
-        "PERPLEXITY_API_KEY": "op://AI DEV/PERPLEXITY_API_KEY/credential",
-        "OPENAI_API_KEY": "op://AI DEV/OPENAI_API_KEY/credential",
-        "GOOGLE_API_KEY": "op://AI DEV/GOOGLE_API_KEY/credential",
-        "XAI_API_KEY": "op://AI DEV/XAI_API_KEY/credential",
-        "OPENROUTER_API_KEY": "op://AI DEV/OPENROUTER_API_KEY/credential",
-        "MISTRAL_API_KEY": "op://AI DEV/MISTRAL_API_KEY/credential",
-        "AZURE_OPENAI_API_KEY": "op://AI DEV/AZURE_OPENAI_API_KEY/credential",
-        "OLLAMA_API_KEY": "op://AI DEV/OLLAMA_API_KEY/credential"
+        "TASK_MASTER_TOOLS": "all",
+        "ANTHROPIC_API_KEY": "YOUR_ANTHROPIC_API_KEY_HERE",
+        "PERPLEXITY_API_KEY": "YOUR_PERPLEXITY_API_KEY_HERE",
+        "OPENAI_API_KEY": "YOUR_OPENAI_KEY_HERE",
+        "GOOGLE_API_KEY": "YOUR_GOOGLE_KEY_HERE",
+        "XAI_API_KEY": "YOUR_XAI_KEY_HERE",
+        "OPENROUTER_API_KEY": "YOUR_OPENROUTER_KEY_HERE",
+        "MISTRAL_API_KEY": "YOUR_MISTRAL_KEY_HERE",
+        "AZURE_OPENAI_API_KEY": "YOUR_AZURE_KEY_HERE",
+        "OLLAMA_API_KEY": "YOUR_OLLAMA_API_KEY_HERE"
       }
+    },
+    "Prisma-Local": {
+      "command": "npx",
+      "args": ["-y", "prisma", "mcp"]
+    },
+    "sequential-thinking": {
+      "command": "npx",
+      "args": ["-y", "@modelcontextprotocol/server-sequential-thinking"]
+    },
+    "grep": {
+      "url": "https://mcp.grep.app"
+    },
+    "Neon": {
+      "command": "npx",
+      "args": ["-y", "mcp-remote", "https://mcp.neon.tech/mcp"]
     }
   }
 }

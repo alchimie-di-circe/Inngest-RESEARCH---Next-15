@@ -206,7 +206,7 @@
             "dependencies": [
               1
             ],
-            "details": "1. Update gatherContext function signature to accept depth (1-5) and breadth (1-5) from event.data\n2. Depth affects: number of search variations per source, embedding comparison threshold, context ranking strictness\n3. Breadth affects: number of sources to query in parallel, max results per source (breadth * 5), total contexts returned (breadth * 10)\n4. Modify ArXiv query to expand search terms based on depth (depth > 3 adds related terms)\n5. Modify GitHub search to adjust repos searched based on breadth\n6. Modify VectorDB query to adjust topK based on depth * breadth\n7. Modify Web search to adjust result count based on breadth\n8. Update context ranking threshold: higher depth = stricter relevance cutoff\n9. Default values: depth=3, breadth=3 for backward compatibility with existing events",
+            "details": "1. Update gatherContext function signature to accept depth (1-5), breadth (1-5), and selectedMCPs array from event.data\n2. Depth affects: number of search variations per source, embedding comparison threshold, context ranking strictness\n3. Breadth affects: number of sources to query in parallel, max results per source (breadth * 5), total contexts returned (breadth * 10)\n4. REMOVE ArXiv and GitHub sources - replaced by new MCP integrations (Task 16-18)\n5. Use MCP Router to dynamically route queries to selected MCPs (Jina, Firecrawl, Reddit, Google Deep Research)\n6. Modify VectorDB query to adjust topK based on depth * breadth (VectorDB sempre attivo)\n7. Update context ranking threshold: higher depth = stricter relevance cutoff\n8. Add source diversity bonus in ranking (results from multiple MCPs rank higher)\n9. Default values: depth=3, breadth=3, selectedMCPs=['jina', 'reddit'] for backward compatibility",
             "status": "pending",
             "testStrategy": "Unit tests for parameter scaling logic, integration tests verifying different depth/breadth combinations produce expected result counts",
             "parentId": "undefined"
@@ -540,15 +540,369 @@
         "complexity": 4,
         "recommendedSubtasks": 3,
         "expansionPrompt": "Break down CI/CD pipeline into: 1) Creating .github/workflows/ci.yml with parallel lint, test-unit, test-integration, test-e2e jobs; 2) Creating .github/workflows/deploy.yml with Vercel deployment action; 3) Adding status badges to README and configuring branch protection. .github/instructions/ directory exists but no workflows yet."
+      },
+      {
+        "id": "16",
+        "title": "Create MCP Client Infrastructure",
+        "description": "Create the MCP client infrastructure with support for Jina.AI, Firecrawl, Reddit, and Google Deep Research integrations following AgentKit patterns.",
+        "details": "Create `/src/lib/mcp/` directory with the following files:\n\n1. `types.ts` - Define MCPSource type ('jina' | 'firecrawl' | 'reddit' | 'google_deep_research' | 'vectordb'), MCPResult interface, MCPConfig interface for transport configuration.\n\n2. `jina-client.ts` - SSE transport client for Jina.AI MCP:\n   - URL: https://mcp.jina.ai/v1?include_tags=search,read\n   - Tools: search_web, read_url, parallel_search_web\n   - Requires JINA_API_KEY\n\n3. `firecrawl-client.ts` - SSE transport client for Firecrawl MCP:\n   - URL: https://mcp.firecrawl.dev/v2/mcp\n   - Tools: firecrawl_scrape, firecrawl_search, firecrawl_crawl, firecrawl_extract\n   - Requires FIRECRAWL_API_KEY\n\n4. `reddit-client.ts` - stdio transport client for Reddit MCP:\n   - Command: uvx mcp-server-reddit\n   - Tools: get_frontpage_posts, get_subreddit_info, get_subreddit_hot_posts, get_subreddit_new_posts, get_subreddit_top_posts, get_subreddit_rising_posts, get_post_content, get_post_comments\n   - NO credentials required!\n\n5. `google-deep-research.ts` - Custom wrapper for Google Interactions API:\n   - Uses GoogleGenerativeAI SDK\n   - Agent: deep-research-pro-preview-12-2025\n   - Implements polling for async results\n   - Cost tracking (~$2-5 per query)\n\n6. `mcp-router.ts` - Routes queries to selected MCPs with Promise.allSettled\n\n7. `index.ts` - Barrel exports",
+        "testStrategy": "Unit tests for each MCP client with mocked responses. Integration tests for Reddit MCP (no credentials needed). Test error handling and retry logic.",
+        "priority": "high",
+        "dependencies": ["1"],
+        "status": "pending",
+        "subtasks": [
+          {
+            "id": 1,
+            "title": "Create MCP types and interfaces",
+            "description": "Create `/src/lib/mcp/types.ts` with MCPSource, MCPResult, MCPConfig, and transport type definitions.",
+            "dependencies": [],
+            "details": "Define TypeScript types for the MCP infrastructure including MCPSource union type, MCPResult interface with source attribution, MCPConfig for transport settings, and helper types for each MCP's specific response formats.",
+            "status": "pending",
+            "testStrategy": "TypeScript compilation check"
+          },
+          {
+            "id": 2,
+            "title": "Create Jina MCP client",
+            "description": "Implement SSE transport client for Jina.AI with search_web and read_url methods.",
+            "dependencies": [1],
+            "details": "Use SSE transport with authorization header. Implement searchWeb(query, options) and readUrl(url) methods. Handle rate limiting and errors.",
+            "status": "pending",
+            "testStrategy": "Unit tests with mocked SSE responses"
+          },
+          {
+            "id": 3,
+            "title": "Create Firecrawl MCP client",
+            "description": "Implement SSE transport client for Firecrawl with scrape, search, and crawl methods.",
+            "dependencies": [1],
+            "details": "Use SSE transport with authorization header. Implement scrape(url), search(query), crawl(url, depth) methods.",
+            "status": "pending",
+            "testStrategy": "Unit tests with mocked SSE responses"
+          },
+          {
+            "id": 4,
+            "title": "Create Reddit MCP client",
+            "description": "Implement stdio transport client for Reddit MCP using uvx mcp-server-reddit.",
+            "dependencies": [1],
+            "details": "Use stdio transport with uvx command. Implement methods for all 8 Reddit tools. No credentials required.",
+            "status": "pending",
+            "testStrategy": "Integration tests with actual Reddit MCP"
+          },
+          {
+            "id": 5,
+            "title": "Create Google Deep Research wrapper",
+            "description": "Implement custom wrapper for Google Interactions API with polling support.",
+            "dependencies": [1],
+            "details": "Use GoogleGenerativeAI SDK. Implement executeDeepResearch(query) with background: true and polling. Track cost per query.",
+            "status": "pending",
+            "testStrategy": "Unit tests with mocked API responses"
+          },
+          {
+            "id": 6,
+            "title": "Create MCP router",
+            "description": "Implement router that dispatches queries to selected MCPs in parallel.",
+            "dependencies": [2, 3, 4, 5],
+            "details": "Use Promise.allSettled for parallel execution. Normalize results to ContextItem interface. Add source diversity bonus for ranking.",
+            "status": "pending",
+            "testStrategy": "Integration tests with multiple MCPs"
+          },
+          {
+            "id": 7,
+            "title": "Create barrel exports",
+            "description": "Create index.ts with all exports from the mcp module.",
+            "dependencies": [6],
+            "details": "Export all types, clients, and router from /src/lib/mcp/index.ts",
+            "status": "pending",
+            "testStrategy": "Import verification"
+          }
+        ],
+        "complexity": 8,
+        "recommendedSubtasks": 7,
+        "expansionPrompt": "Break down MCP client infrastructure into types definition, individual client implementations for each MCP, router, and exports."
+      },
+      {
+        "id": "17",
+        "title": "Implement Reddit MCP Integration with Workflow",
+        "description": "Create the Reddit-specific research workflow with subreddit mapping, multi-subreddit parallel fetch, and comment depth fetching.",
+        "details": "Implement a sophisticated Reddit research workflow:\n\n1. Create subreddit mapping per query type in `/src/lib/mcp/reddit-workflow.ts`:\n   - Tech/AI: r/MachineLearning, r/artificial, r/LocalLLaMA, r/singularity\n   - Marketing: r/marketing, r/socialmedia, r/Entrepreneur\n   - Product feedback: r/[product], r/reviews\n   - Industry news: r/technology, r/business, r/startups\n\n2. Implement `fetchReddit(query, options)` workflow:\n   - Step 1: identifySubreddits(query) - Use NLP/keywords to find relevant subreddits\n   - Step 2: Parallel fetch top posts from each subreddit (limit: 10, time_filter: month)\n   - Step 3: Select top 5 posts and fetch comments (depth: 3, limit: 20)\n   - Step 4: Normalize to ContextItem with Reddit-specific metadata\n\n3. Add Reddit-specific realtime progress updates:\n   - 'reddit-subreddits-found' topic\n   - 'reddit-posts-fetched' topic\n   - 'reddit-comments-fetched' topic\n\n4. Handle Reddit's unique data (upvotes, awards, comment threads) for ranking",
+        "testStrategy": "Integration tests with actual Reddit MCP for various query types. Verify subreddit mapping accuracy. Test comment depth handling.",
+        "priority": "high",
+        "dependencies": ["16"],
+        "status": "pending",
+        "subtasks": [
+          {
+            "id": 1,
+            "title": "Create subreddit mapping configuration",
+            "description": "Define keyword-to-subreddit mappings for different query types.",
+            "dependencies": [],
+            "details": "Create configurable mapping with categories and fallback subreddits.",
+            "status": "pending",
+            "testStrategy": "Unit tests for mapping logic"
+          },
+          {
+            "id": 2,
+            "title": "Implement fetchReddit workflow",
+            "description": "Create the main Reddit fetch workflow with parallel subreddit queries.",
+            "dependencies": [1],
+            "details": "Use Promise.allSettled for parallel subreddit fetching. Select top posts and fetch comments.",
+            "status": "pending",
+            "testStrategy": "Integration tests with Reddit MCP"
+          },
+          {
+            "id": 3,
+            "title": "Add Reddit-specific realtime updates",
+            "description": "Create realtime channel topics for Reddit progress tracking.",
+            "dependencies": [2],
+            "details": "Add topics to channels.ts for Reddit-specific progress updates.",
+            "status": "pending",
+            "testStrategy": "Verify realtime updates stream correctly"
+          },
+          {
+            "id": 4,
+            "title": "Normalize Reddit results to ContextItem",
+            "description": "Transform Reddit API responses to standard ContextItem format.",
+            "dependencies": [2],
+            "details": "Include upvotes, awards, comment count in metadata. Handle nested comment threads.",
+            "status": "pending",
+            "testStrategy": "Unit tests for normalization"
+          }
+        ],
+        "complexity": 6,
+        "recommendedSubtasks": 4,
+        "expansionPrompt": "Break down Reddit workflow into subreddit mapping, fetch implementation, realtime updates, and result normalization."
+      },
+      {
+        "id": "18",
+        "title": "Replace Old Source Files with MCP Sources",
+        "description": "Create new source wrapper files for each MCP and archive the old ArXiv/GitHub sources.",
+        "details": "Create wrapper files in `/src/lib/sources/` that use the MCP clients:\n\n1. `jina.ts` - Wrapper around Jina MCP client:\n   - Export fetchJina(query) function\n   - Normalize results to ContextItem\n   - Handle errors gracefully\n\n2. `firecrawl.ts` - Wrapper around Firecrawl MCP client:\n   - Export fetchFirecrawl(query) function\n   - Use scrape for URLs, search for queries\n   - Normalize results to ContextItem\n\n3. `reddit.ts` - Wrapper around Reddit workflow:\n   - Export fetchReddit(query) function\n   - Uses reddit-workflow.ts\n   - Normalize results to ContextItem\n\n4. `google-deep-research.ts` - Wrapper around Google DR:\n   - Export fetchGoogleDeepResearch(query) function\n   - Handle async polling internally\n   - Normalize results to ContextItem\n\n5. Update `index.ts` with new exports\n\n6. Archive (rename to .archived) arxiv.ts and github.ts for reference",
+        "testStrategy": "Unit tests for each wrapper. Integration tests verifying ContextItem normalization.",
+        "priority": "high",
+        "dependencies": ["16", "17"],
+        "status": "pending",
+        "subtasks": [],
+        "complexity": 4,
+        "recommendedSubtasks": 6,
+        "expansionPrompt": "Break down into creating each source wrapper file and archiving old sources."
+      },
+      {
+        "id": "19",
+        "title": "Update gather-context for Dynamic MCP Selection",
+        "description": "Modify gather-context.ts to accept selectedMCPs array and route to MCP router instead of hardcoded sources.",
+        "details": "Update `/src/inngest/functions/gather-context.ts`:\n\n1. Update event type in client.ts to include selectedMCPs: string[] in 'research/gather-context' event data\n\n2. Modify gatherContext function:\n   - Accept selectedMCPs from event.data (default: ['jina', 'reddit'])\n   - Replace hardcoded source calls with MCP router\n   - Keep VectorDB always active\n\n3. Update source-result publishing:\n   - Dynamically publish for each selected MCP\n   - Use MCP name as source identifier\n\n4. Add fallback logic:\n   - If all MCPs fail, fall back to VectorDB only\n   - Publish error with recoverable: true\n\n5. Update progress messages to reflect dynamic sources\n\n6. Update tests to cover new MCP selection behavior",
+        "testStrategy": "Integration tests with various MCP combinations. Test fallback behavior. Verify realtime updates for each MCP.",
+        "priority": "high",
+        "dependencies": ["18"],
+        "status": "pending",
+        "subtasks": [],
+        "complexity": 5,
+        "recommendedSubtasks": 5,
+        "expansionPrompt": "Break down into event schema update, gather-context modification, source-result publishing, fallback logic, and testing."
+      },
+      {
+        "id": "20",
+        "title": "Add Database Models for Preferences and Credentials",
+        "description": "Add UserPreferences and APICredential models to Prisma schema with encryption support for storing user API keys.",
+        "details": "Update `/prisma/schema.prisma` and create supporting files:\n\n1. Add UserPreferences model:\n   - id, createdAt, updatedAt, userId (unique)\n   - defaultMCPs: String[] @default([\"jina\", \"reddit\"])\n   - mcpPriority: String[]\n   - defaultDepth, defaultBreadth: Int\n   - showAdvancedOptions: Boolean\n   - relation to APICredential[]\n\n2. Add APICredential model:\n   - id, createdAt, updatedAt\n   - userPrefsId (FK), service, credentialType\n   - encryptedValue: String\n   - isValid: Boolean, lastValidated: DateTime?\n   - @@unique([userPrefsId, service])\n\n3. Update ResearchJob model:\n   - Add mcpsUsed: String[] @default([])\n   - Add mcpResults: Json?\n\n4. Create `/src/lib/credentials.ts`:\n   - encryptCredential(value) using AES-256-CBC\n   - decryptCredential(encrypted)\n   - Uses CREDENTIALS_ENCRYPTION_KEY env var\n\n5. Run `npx prisma db push` (in Codespace)\n\n6. Create type exports in `/src/types/preferences.ts`",
+        "testStrategy": "Database migration test. Unit tests for encrypt/decrypt functions. Integration tests for CRUD operations.",
+        "priority": "high",
+        "dependencies": ["1"],
+        "status": "pending",
+        "subtasks": [],
+        "complexity": 4,
+        "recommendedSubtasks": 6,
+        "expansionPrompt": "Break down into Prisma schema updates, credentials utility, migration, and type exports."
+      },
+      {
+        "id": "21",
+        "title": "Create MCPSelector Component",
+        "description": "Create a reusable MCPSelector component for selecting 1-4 research sources with status indicators.",
+        "details": "Create `/src/components/MCPSelector.tsx`:\n\n1. Props interface:\n   - selectedMCPs: string[]\n   - onChange: (mcps: string[]) => void\n   - maxSelections?: number (default 4)\n   - disabled?: boolean\n   - credentialStatus?: Record<string, 'connected' | 'not_configured' | 'no_auth_needed'>\n\n2. MCP options configuration:\n   - jina: name='Jina.AI', icon='🔍', description='Web search & content reading'\n   - firecrawl: name='Firecrawl', icon='🔥', description='Advanced web scraping'\n   - reddit: name='Reddit', icon='💬', description='Community insights', noAuthNeeded=true\n   - google_deep_research: name='Google Deep', icon='🧠', description='AI deep research', costWarning='$2-5/query'\n\n3. UI features:\n   - Checkbox multi-select with validation (min 1, max 4)\n   - Status indicators per MCP (checkmark, gear, free badge)\n   - Tooltips with descriptions and cost warnings\n   - Disable unconfigured MCPs (except Reddit)\n\n4. Styling:\n   - Dark theme: bg-slate-800, border-slate-700, text-white\n   - Selected: bg-indigo-600/20, border-indigo-500\n   - Disabled: opacity-50, cursor-not-allowed",
+        "testStrategy": "Component tests for selection logic. Accessibility tests. Visual regression tests for status indicators.",
+        "priority": "medium",
+        "dependencies": ["20"],
+        "status": "pending",
+        "subtasks": [],
+        "complexity": 4,
+        "recommendedSubtasks": 5,
+        "expansionPrompt": "Break down into props definition, MCP config, selection logic, status indicators, and styling."
+      },
+      {
+        "id": "22",
+        "title": "Update QueryForm with MCP Selection",
+        "description": "Integrate MCPSelector into QueryForm with collapsible Advanced Options section.",
+        "details": "Update `/src/components/QueryForm.tsx`:\n\n1. Add new state:\n   - selectedMCPs: string[] (default from user preferences)\n   - showAdvanced: boolean\n\n2. Add Advanced Options toggle:\n   - Collapsible section below query input\n   - Toggle button: 'Show/Hide Research Sources'\n\n3. Integrate MCPSelector:\n   - Pass selectedMCPs and onChange handler\n   - Pass credentialStatus from user preferences\n\n4. Update QueryFormProps:\n   - Add defaultMCPs?: string[]\n   - Update onSubmit: (query: string, selectedMCPs: string[]) => void\n\n5. Add info text:\n   - 'Configure missing credentials in Settings' link\n   - Show selected MCPs count in collapsed state\n\n6. Handle disabled state:\n   - Disable MCPSelector when loading\n   - Prevent form submission if no MCPs selected",
+        "testStrategy": "Component tests for form behavior. Test MCP selection persistence. Test disabled states.",
+        "priority": "medium",
+        "dependencies": ["21"],
+        "status": "pending",
+        "subtasks": [],
+        "complexity": 4,
+        "recommendedSubtasks": 5,
+        "expansionPrompt": "Break down into state management, Advanced Options UI, MCPSelector integration, and form updates."
+      },
+      {
+        "id": "23",
+        "title": "Create Settings Page with Credentials Management",
+        "description": "Create the Settings page with API credentials management, MCP status, and research defaults.",
+        "details": "Create Settings page and components:\n\n1. `/src/app/(dashboard)/settings/page.tsx`:\n   - Server component wrapper\n   - Sections: Research Credentials, Default Settings, Publishing Credentials\n\n2. `/src/components/settings/APICredentialsForm.tsx`:\n   - Form for each MCP (Jina, Firecrawl, Google)\n   - Password input with reveal toggle\n   - Test connection button\n   - Save/Update buttons\n   - Status indicator (connected/not configured)\n   - Help link to get API key\n\n3. `/src/components/settings/MCPStatusIndicator.tsx`:\n   - Shows connection status with icon\n   - Green checkmark = connected\n   - Red X = not configured\n   - Blue info = no auth needed (Reddit)\n\n4. `/src/components/settings/ResearchDefaultsForm.tsx`:\n   - Default MCPs selection (using MCPSelector)\n   - Default depth/breadth sliders\n   - Save preferences button\n\n5. Update `/src/components/sidebar.tsx`:\n   - Add Settings link with gear icon\n   - Route: /settings\n\n6. `/src/app/api/credentials/route.ts`:\n   - POST: Save encrypted credential\n   - GET: Get credential status (not decrypted value)\n   - PUT: Update credential\n   - DELETE: Remove credential\n   - POST /test: Test credential validity\n\n7. `/src/app/api/user-preferences/route.ts`:\n   - GET: Get user preferences\n   - PUT: Update user preferences",
+        "testStrategy": "Component tests for forms. Integration tests for API routes. E2E test for full settings flow.",
+        "priority": "high",
+        "dependencies": ["20", "21"],
+        "status": "pending",
+        "subtasks": [],
+        "complexity": 7,
+        "recommendedSubtasks": 8,
+        "expansionPrompt": "Break down into page creation, form components, API routes, sidebar update, and credential testing."
+      },
+      {
+        "id": "24",
+        "title": "Update Actions and Orchestrator",
+        "description": "Update server actions and orchestrator to pass selectedMCPs through the research pipeline.",
+        "details": "Update server actions and Inngest functions:\n\n1. Update `/src/app/actions.ts`:\n   - Modify submitResearchQuery(query, sessionId, selectedMCPs?)\n   - Load user preferences if selectedMCPs not provided\n   - Load user credentials for selected MCPs\n   - Pass to Inngest event\n\n2. Update `/src/inngest/client.ts` event schemas:\n   - Add selectedMCPs: string[] to 'research/query.submitted'\n   - Add selectedMCPs: string[] to 'research/gather-context'\n\n3. Update `/src/inngest/functions/orchestrator.ts`:\n   - Extract selectedMCPs from event.data\n   - Pass to gatherContext step.invoke\n   - Save mcpsUsed to ResearchJob on completion\n\n4. Update type definitions throughout the chain\n\n5. Add credential loading for MCP clients:\n   - Decrypt credentials from database\n   - Pass to MCP clients via environment or config",
+        "testStrategy": "Integration tests for full pipeline with various MCP selections. Verify credentials are passed correctly.",
+        "priority": "high",
+        "dependencies": ["19"],
+        "status": "pending",
+        "subtasks": [],
+        "complexity": 5,
+        "recommendedSubtasks": 5,
+        "expansionPrompt": "Break down into actions update, event schema update, orchestrator update, and credential loading."
+      },
+      {
+        "id": "25",
+        "title": "Enhance Fact-Checker for Cross-MCP Validation",
+        "description": "Update fact-checker agent to validate claims across multiple MCP sources with special handling for Reddit opinions.",
+        "details": "Update `/src/inngest/functions/agents/fact-checker-agent.ts`:\n\n1. Update input to receive per-MCP results:\n   - mcpResults: Record<string, ContextItem[]>\n   - sources: string[] (which MCPs were used)\n\n2. Implement cross-source claim validation:\n   - Extract key claims from each MCP's results\n   - Compare claims across sources\n   - Identify agreement (claim in 2+ sources) vs disagreement\n\n3. Add confidence scoring:\n   - High confidence: claim appears in 2+ authoritative sources\n   - Medium confidence: claim in 1 authoritative source\n   - Low confidence: claim only in Reddit (community opinion)\n   - Flag: conflicting claims between sources\n\n4. Special handling for Reddit:\n   - Mark as 'community opinion' not 'fact'\n   - Weight by upvotes/awards\n   - Note when Reddit contradicts authoritative sources\n\n5. Update output format:\n   - Add confidenceScore to each claim\n   - Add sourceAgreement field\n   - Add conflicts array for contradictions\n\n6. Update realtime channel:\n   - Add 'fact-check-progress' topic\n   - Stream claim validation as it happens",
+        "testStrategy": "Unit tests for claim extraction and comparison. Test confidence scoring logic. Test Reddit special handling.",
+        "priority": "medium",
+        "dependencies": ["19", "24"],
+        "status": "pending",
+        "subtasks": [],
+        "complexity": 4,
+        "recommendedSubtasks": 6,
+        "expansionPrompt": "Break down into input update, claim validation, confidence scoring, Reddit handling, output format, and realtime updates."
+      },
+      {
+        "id": "26",
+        "title": "Setup Next.js DevTools MCP",
+        "description": "Configure Next.js DevTools MCP server for Dev Agents (Droid, Claude Code) to enable automated upgrade diagnostics and Next.js 16+ runtime features.",
+        "details": "Configure Next.js DevTools MCP for development agents:\n\n1. Add `next-devtools` configuration to `.mcp.json`:\n   ```json\n   {\n     \"next-devtools\": {\n       \"command\": \"npx\",\n       \"args\": [\"-y\", \"next-devtools-mcp@latest\"]\n     }\n   }\n   ```\n\n2. Test MCP server connection with `npx next-devtools-mcp@latest`\n\n3. Verify available tools:\n   - `init` - Initialize context and access documentation\n   - `upgrade_nextjs_16` - Execute Next.js 16 upgrade\n   - `get_errors` - Detect build/runtime errors (Next.js 16+)\n   - `get_routes` - Inspect application routes\n   - `get_server_actions` - Debug Server Actions\n\n4. (Optional) Add custom instructions in `.claude/instructions` for auto-init\n\n5. Document MCP setup in `.factory/rules/` or project docs\n\nFiles involved: `.mcp.json`, `.claude/instructions`\n\nNote: This is a DEV AGENT tool, NOT for Inngest AgentKit production agents.",
+        "testStrategy": "MCP server connectivity test. Verify all tools are accessible. Confirm documentation is available to Dev Agents.",
+        "priority": "high",
+        "dependencies": [],
+        "status": "pending",
+        "subtasks": [],
+        "complexity": 2,
+        "recommendedSubtasks": 0,
+        "expansionPrompt": ""
+      },
+      {
+        "id": "27",
+        "title": "Backup Pre-Upgrade",
+        "description": "Create complete backup before Next.js 16 upgrade for rapid rollback in case of critical issues.",
+        "details": "Create safe backup before upgrade:\n\n1. Create git branch: `git checkout -b backup/pre-next16-upgrade`\n\n2. Commit current state with detailed message including:\n   - Current Next.js version\n   - Current React version\n   - All dependency versions\n   - State description\n\n3. Create release tag: `git tag v1.0-next15-stable`\n\n4. Push backup branch and tag to GitHub:\n   ```bash\n   git push origin backup/pre-next16-upgrade\n   git push origin v1.0-next15-stable\n   ```\n\n5. Document current dependencies in `UPGRADE/UPGRADE_LOG.md`:\n   - Next.js version: 15.5.7\n   - React version\n   - Other critical dependencies\n   - Backup date/time\n   - Backup branch and tag\n\nFiles: `.git/`, `UPGRADE_LOG.md`, `package.json`, `package-lock.json`\n\nAcceptance Criteria:\n- Backup branch created and pushed\n- Release tag v1.0-next15-stable applied\n- Dependencies documented in UPGRADE_LOG.md",
+        "testStrategy": "Verify branch exists on GitHub. Verify tag applied. Verify UPGRADE_LOG.md contains dependency info.",
+        "priority": "critical",
+        "dependencies": ["26"],
+        "status": "pending",
+        "subtasks": [],
+        "complexity": 1,
+        "recommendedSubtasks": 0,
+        "expansionPrompt": ""
+      },
+      {
+        "id": "28",
+        "title": "Execute Next.js 16 Upgrade",
+        "description": "Execute automated Next.js 15 → 16 upgrade using upgrade_nextjs_16 tool from Next.js DevTools MCP.",
+        "details": "Use Next.js DevTools MCP to perform safe automated upgrade:\n\n1. Initialize context: Call `init` tool to establish DevTools context and access official Next.js documentation\n\n2. Execute upgrade: Call `upgrade_nextjs_16` tool which:\n   - Automatically applies official Next.js codemods\n   - Updates package.json and dependencies\n   - Handles breaking changes automatically\n\n3. Review codemods applied:\n   - Check which files were modified\n   - Review suggestions from tool output\n   - Document all automatic changes\n\n4. Run `npm install` to update lockfile\n\n5. Verify breaking changes documentation:\n   - Async Request APIs (cookies, headers, params)\n   - Cache Components (new pattern in Next.js 16)\n   - Metadata APIs (async changes)\n   - Turbopack becomes default\n   - App Router stabilizations\n\n6. Document breaking changes resolved in `UPGRADE_LOG.md`:\n   - What changed\n   - How fixed\n   - Files modified\n\nFiles modified: `package.json`, `package-lock.json`, `next.config.js`, `src/**/*.ts(x)`, `UPGRADE_LOG.md`\n\nAcceptance Criteria:\n- Next.js updated to 16.x.x\n- All codemods applied\n- npm install successful\n- Breaking changes documented",
+        "testStrategy": "Verify package.json shows Next.js 16.x. Run npm install without errors. Check codemods were applied correctly.",
+        "priority": "high",
+        "dependencies": ["26", "27"],
+        "status": "pending",
+        "subtasks": [],
+        "complexity": 5,
+        "recommendedSubtasks": 5,
+        "expansionPrompt": "Break into: DevTools init, upgrade execution, codemod review, npm install, breaking changes verification, documentation"
+      },
+      {
+        "id": "29",
+        "title": "Post-Upgrade Diagnostics",
+        "description": "Verify application state post-upgrade using Next.js 16+ runtime diagnostics tools.",
+        "details": "Use Next.js DevTools MCP diagnostic tools (available only in Next.js 16+):\n\n1. Start dev server:\n   ```bash\n   npm run dev\n   ```\n   Keep running in background for diagnostics\n\n2. Run diagnostics tools:\n   - `get_errors`: Detect build errors and runtime errors\n   - `get_routes`: Verify all routes configured correctly\n   - `get_server_actions`: Check Server Actions setup\n   - `get_dev_server_url`: Verify dev server endpoint\n\n3. Address critical errors:\n   - Fix all build-blocking errors\n   - Resolve runtime errors from errors log\n   - Verify route configuration\n\n4. Type-check:\n   ```bash\n   npm run type-check\n   ```\n\n5. Document findings in `UPGRADE_LOG.md`:\n   - Errors found and fixed\n   - Routes verified\n   - Server Actions status\n   - Any warnings or issues\n\nFiles: Dev server runtime, `UPGRADE_LOG.md`, source files\n\nTools from MCP: `get_errors`, `get_routes`, `get_server_actions`, `get_dev_server_url`\n\nAcceptance Criteria:\n- Dev server running without critical errors\n- Build successful\n- Type-check passed\n- All critical errors resolved and documented",
+        "testStrategy": "Run dev server and verify no critical errors. Run get_errors and verify output. Type-check completes successfully.",
+        "priority": "high",
+        "dependencies": ["28"],
+        "status": "pending",
+        "subtasks": [],
+        "complexity": 3,
+        "recommendedSubtasks": 0,
+        "expansionPrompt": ""
+      },
+      {
+        "id": "30",
+        "title": "Testing & Validation",
+        "description": "Execute comprehensive test suite to validate all functionality works correctly after Next.js 16 upgrade.",
+        "details": "Run full test suite to ensure upgrade didn't break functionality:\n\n1. Unit Tests:\n   ```bash\n   npm run test\n   ```\n   Verify all unit tests pass\n\n2. E2E Tests:\n   ```bash\n   npm run test:e2e\n   ```\n   Verify all Playwright E2E tests pass\n\n3. Test Coverage:\n   ```bash\n   npm run test:coverage\n   ```\n   Verify coverage threshold met\n\n4. Manual Testing:\n   - Test critical user flows manually\n   - Verify UI interactions work\n   - Test form submissions\n   - Test navigation\n\n5. Inngest Validation:\n   - Verify Inngest orchestrator workflow functioning\n   - Test Inngest realtime channels working\n   - Verify event triggers working\n   - Check function logs for errors\n\n6. Database Operations:\n   - Verify Prisma queries working\n   - Test database migrations\n   - Test CRUD operations\n\nFiles: Test configs, test files, Inngest functions, Prisma schema\n\nTest Checklist:\n- [ ] Unit tests passed\n- [ ] E2E tests passed\n- [ ] Inngest orchestrator working\n- [ ] Realtime channels functional\n- [ ] Database operations functional\n- [ ] Coverage threshold met\n\nAcceptance Criteria:\n- All tests passing\n- Inngest functions operational\n- Realtime channels working\n- Database operations functional",
+        "testStrategy": "Run all test commands. Verify exit codes are 0. Check Inngest dashboard for successful runs. Verify no errors in logs.",
+        "priority": "high",
+        "dependencies": ["29"],
+        "status": "pending",
+        "subtasks": [],
+        "complexity": 4,
+        "recommendedSubtasks": 5,
+        "expansionPrompt": "Break into: Unit tests, E2E tests, Inngest validation, database operations, manual testing, coverage verification"
+      },
+      {
+        "id": "31",
+        "title": "Setup shadcn MCP Server",
+        "description": "Configure shadcn MCP server for Dev Agents to enable automated UI component management via natural language.",
+        "details": "Configure shadcn MCP for component management:\n\n1. Add `shadcn` configuration to `.mcp.json`:\n   ```json\n   {\n     \"shadcn\": {\n       \"command\": \"npx\",\n       \"args\": [\"shadcn@latest\", \"mcp\"]\n     }\n   }\n   ```\n\n2. Verify `components.json` exists in project root\n\n3. Test MCP server connection:\n   ```bash\n   npx shadcn@latest mcp\n   ```\n\n4. Verify available tools:\n   - `list-registries` - List configured registries\n   - `list-components` - List available components\n   - `search-registry` - Search components by name/tag\n   - `add-component` - Install components via natural language\n\n5. (Optional) Configure private registries in `components.json` if needed\n\n6. Test component installation with natural language:\n   ```\n   \"Add button and card components to my project\"\n   ```\n\nFiles: `.mcp.json`, `components.json`, `src/components/ui/`\n\nNote: This is a DEV AGENT tool for UI component management. It's different from production Inngest AgentKit MCPs.\n\nAcceptance Criteria:\n- shadcn MCP responds correctly\n- list-components tool works\n- add-component successfully installs test component\n- Natural language commands functional",
+        "testStrategy": "Test MCP connection. Run list-components and verify output. Install test component with natural language. Verify component files created.",
+        "priority": "medium",
+        "dependencies": ["30"],
+        "status": "pending",
+        "subtasks": [],
+        "complexity": 2,
+        "recommendedSubtasks": 0,
+        "expansionPrompt": ""
+      },
+      {
+        "id": "32",
+        "title": "Documentation & Knowledge Sharing",
+        "description": "Update project documentation with Next.js 16 upgrade details and newly configured Dev MCP tools.",
+        "details": "Update project documentation to reflect Next.js 16 and new Dev MCP tools:\n\n1. Update `README.md`:\n   - Update Next.js version from 15 to 16\n   - List newly available Dev MCP tools\n   - Add link to MCP setup guide\n\n2. Create/Update `docs/MCP_SETUP.md`:\n   - Guide for configuring Next.js DevTools MCP\n   - Guide for configuring shadcn MCP\n   - Example MCP server configurations\n   - Troubleshooting common MCP issues\n\n3. Update `AGENTS.md`:\n   - Add section: \"Dev MCP Tools (Next.js DevTools, shadcn)\"\n   - Explain difference between Dev MCPs and Inngest AgentKit production MCPs\n   - Document how Dev Agents (Droid, Claude Code) use these tools\n   - Add workflow examples\n\n4. Update `docs/DEVELOPMENT.md`:\n   - Add Next.js DevTools workflow\n   - Document how to use DevTools MCP for debugging\n   - Add examples of common diagnostic commands\n\n5. Finalize `UPGRADE_LOG.md`:\n   - Include summary of upgrade process\n   - List all breaking changes resolved\n   - Document performance impacts\n   - Add notes and recommendations\n\n6. Update `CHANGELOG.md`:\n   - Add entry for Next.js 16 upgrade\n   - Document new MCP tools configured\n   - Note version numbers\n\nFiles: README.md, docs/MCP_SETUP.md, AGENTS.md, docs/DEVELOPMENT.md, UPGRADE_LOG.md, CHANGELOG.md\n\nAcceptance Criteria:\n- All documentation updated and complete\n- MCP setup guides clear and comprehensive\n- Examples provided for common use cases\n- Breaking changes documented\n- Dev vs Production MCPs clearly distinguished",
+        "testStrategy": "Review all documentation for accuracy. Verify links work. Test examples in guides.",
+        "priority": "medium",
+        "dependencies": ["31"],
+        "status": "pending",
+        "subtasks": [],
+        "complexity": 2,
+        "recommendedSubtasks": 0,
+        "expansionPrompt": ""
+      },
+      {
+        "id": "33",
+        "title": "Production Deployment Preparation",
+        "description": "Prepare application for production deployment with Next.js 16, verifying optimized build and Vercel configurations.",
+        "details": "Prepare for production deployment:\n\n1. Production Build:\n   ```bash\n   npm run build\n   ```\n   Verify build completes without errors\n\n2. Analyze Bundle:\n   - Check bundle size output from build\n   - Identify large chunks\n   - Note optimizations applied\n   - Document bundle size changes\n\n3. Verify Environment:\n   - Check all required environment variables are set\n   - Verify Vercel environment variables configured\n   - Test with production environment values locally\n\n4. Test Production Build Locally:\n   ```bash\n   npm run start\n   ```\n   - Verify app runs from production build\n   - Test critical user flows\n   - Check performance\n\n5. Turbopack Configuration:\n   - If Turbopack enabled (default in Next.js 16), verify setup\n   - Test Turbopack build performance\n   - Document any Turbopack-specific configuration\n\n6. Environment Setup:\n   - Update `.env.example` if needed\n   - Verify all environment variables documented\n   - Check Inngest production endpoint configured\n\n7. Inngest Production:\n   - Verify Inngest production endpoint configured\n   - Test production event sending\n   - Verify function triggers work in production\n\n8. Deploy Preview:\n   - Create Vercel deploy preview\n   - Test full deployment flow\n   - Verify preview deployment succeeds\n\nFiles: next.config.js, .env.example, .vercel/, vercel.json, UPGRADE_LOG.md\n\nProduction Checklist:\n- [ ] Production build completed without errors\n- [ ] Bundle size analyzed and optimized\n- [ ] Environment variables verified\n- [ ] App runs from production build\n- [ ] Inngest production endpoint configured\n- [ ] Deploy preview tested\n\nAcceptance Criteria:\n- Production build successful\n- Bundle size analyzed\n- All environment variables configured\n- Inngest production ready\n- Deploy preview tested successfully",
+        "testStrategy": "Run production build. Test locally with npm start. Verify all critical features work. Test deploy preview.",
+        "priority": "medium",
+        "dependencies": ["32"],
+        "status": "pending",
+        "subtasks": [],
+        "complexity": 3,
+        "recommendedSubtasks": 0,
+        "expansionPrompt": ""
       }
     ],
     "metadata": {
-      "version": "1.0.0",
-      "lastModified": "2026-01-25T20:17:04.662Z",
-      "taskCount": 15,
+      "version": "1.1.0",
+      "lastModified": "2026-01-29T00:00:00.000Z",
+      "taskCount": 25,
       "completedCount": 2,
       "tags": [
-        "master"
+        "master",
+        "mcp-upgrade"
       ]
     }
   }

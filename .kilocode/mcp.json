@@ -1,0 +1,116 @@
+{
+  "mcpServers": {
+    "task-master-ai": {
+      "type": "stdio",
+      "command": "npx",
+      "args": ["-y", "task-master-ai"],
+      "env": {
+        "TASK_MASTER_TOOLS": "all",
+        "ANTHROPIC_API_KEY": "YOUR_ANTHROPIC_API_KEY_HERE",
+        "PERPLEXITY_API_KEY": "YOUR_PERPLEXITY_API_KEY_HERE",
+        "OPENAI_API_KEY": "YOUR_OPENAI_KEY_HERE",
+        "GOOGLE_API_KEY": "YOUR_GOOGLE_KEY_HERE",
+        "XAI_API_KEY": "YOUR_XAI_KEY_HERE",
+        "OPENROUTER_API_KEY": "YOUR_OPENROUTER_KEY_HERE",
+        "MISTRAL_API_KEY": "YOUR_MISTRAL_KEY_HERE",
+        "AZURE_OPENAI_API_KEY": "YOUR_AZURE_KEY_HERE",
+        "OLLAMA_API_KEY": "YOUR_OLLAMA_API_KEY_HERE"
+      }
+    },
+    "Prisma-Local": {
+      "command": "npx",
+      "args": ["-y", "prisma", "mcp"]
+    },
+    "playwright": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "@playwright/mcp@latest",
+        "--browser=chrome",
+        "--headless",
+        "--viewport-size=1280,720"
+      ],
+      "disabled": true,
+      "alwaysAllow": []
+    },
+    "testsprite": {
+      "command": "npx",
+      "args": ["@testsprite/testsprite-mcp"],
+      "env": {
+        "TESTSPRITE_API_KEY": "op://AI DEV/TESTSPRITE_API_KEY/credential"
+      },
+      "disabled": false,
+      "alwaysAllow": []
+    },
+    "docker-mcp": {
+      "command": "docker",
+      "args": ["mcp", "gateway", "run"],
+      "env": {
+        "DOCKER_HOST": "unix:///var/run/docker.sock"
+      },
+      "disabled": true,
+      "alwaysAllow": []
+    },
+    "react-bits": {
+      "command": "npx",
+      "args": ["-y", "mcp-remote", "https://react-bits-mcp.davidhzdev.workers.dev/sse"],
+      "disabled": false,
+      "alwaysAllow": ["get_categories"]
+    },
+    "git": {
+      "command": "uvx",
+      "args": ["mcp-server-git", "--repository", "/"],
+      "disabled": false,
+      "alwaysAllow": []
+    },
+    "grep": {
+      "url": "https://mcp.grep.app"
+    },
+    "memory": {
+      "command": "npx",
+      "args": ["-y", "@modelcontextprotocol/server-memory"]
+    },
+    "puppeteer": {
+      "command": "npx",
+      "args": ["-y", "@modelcontextprotocol/server-puppeteer"]
+    },
+    "shadcn": {
+      "command": "npx",
+      "args": ["-y", "shadcn@canary", "registry:mcp"],
+      "env": {
+        "REGISTRY_URL": "https://tweakcn.com/r/themes/registry.json"
+      },
+      "timeout": 300,
+      "alwaysAllow": [],
+      "disabled": false
+    },
+    "git-mcp": {
+      "type": "streamable-http",
+      "url": "https://gitmcp.io/*/*"
+    },
+    "context7": {
+      "command": "npx",
+      "args": ["-y", "@upstash/context7-mcp"],
+      "env": {
+        "DEFAULT_MINIMUM_TOKENS": ""
+      }
+    },
+    "filesystem": {
+      "command": "npx",
+      "args": ["-y", "@modelcontextprotocol/server-filesystem", "/"]
+    },
+    "sequentialthinking": {
+      "command": "npx",
+      "args": ["-y", "@modelcontextprotocol/server-sequential-thinking"]
+    },
+    "neon": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "@neondatabase/mcp-server-neon",
+        "start",
+        "op://AI DEV/NEON API key/credential"
+      ]
+    }
+  }
+}

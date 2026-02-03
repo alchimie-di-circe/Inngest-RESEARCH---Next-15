@@ -1,0 +1,196 @@
+***  
+name: neon-prisma-orm-setup  
+description: Use when a project uses Prisma ORM with Neon Postgres instead of Drizzle. Guides configuring Prisma schema and Neon connection, managing migrations, and verifying setup. Expects project context and database details. Produces a correctly configured Prisma+Neon integration with migrations and tests.  
+***
+
+# Neon Prisma ORM Setup
+
+This skill configures Prisma ORM to work correctly with Neon Serverless Postgres, covering connection strings, Prisma schema setup, migrations, and basic verification, specifically for projects that use Prisma instead of Drizzle. [github](https://github.com/neondatabase/agent-skills)
+
+## When to Use This Skill
+
+- A project is using Prisma ORM and needs to connect to a Neon Postgres database. [neon](https://neon.com/docs/guides/prisma-migrations)
+- You detect existing Prisma files (`prisma/schema.prisma`, `prisma/` folder) and a Neon project or connection string. [neon](https://neon.tech/docs/guides/prisma-migrations)
+- The user asks to set up or fix Prisma+Neon connection, migrations, or schema synchronization (including SSL / connection issues). [prisma](https://www.prisma.io/docs/orm/tools/prisma-cli)
+- The user explicitly prefers Prisma instead of Drizzle for working with Neon. [prisma](https://www.prisma.io/docs/orm/overview/databases/neon)
+
+## Expected Inputs
+
+- `project_root`: string - Root directory of the application (where `package.json` or main app entry exists).  
+- `has_prisma`: boolean - Whether a `prisma/` directory or `schema.prisma` already exists. [prisma](https://www.prisma.io/docs/orm/tools/prisma-cli)
+- `neon_database_url`: string - Neon connection string (without or with query parameters) from Neon console. [neon](https://neon.tech/docs/guides/prisma-migrations)
+- `runtime_env`: string - Runtime/framework (e.g. `"nextjs"`, `"node"`, `"nestjs"`, `"sveltekit"`) for minor conventions. [prisma](https://www.prisma.io/docs/orm/overview/databases/neon)
+- `migration_strategy`: string - `"migrate-dev"`, `"db-push"`, or `"introspection"` depending on stage (development vs prototype vs existing DB). [neon](https://neon.com/docs/guides/prisma-migrations)
+- Optional: `use_pooling`: boolean - Whether to use a pooled Neon connection (Accelerate/PgBouncer) when relevant. [newiatech](https://www.newiatech.com/docs/guides/prisma)
+- Optional: `env_file`: string - Path to env file to update (default: `.env`).  
+
+## Instructions
+
+### Step 1: Detect Prisma and Neon Context
+
+1. Inspect `project_root` for a `prisma/` directory and `schema.prisma` file, setting `has_prisma` accordingly if not provided. [prisma](https://www.prisma.io/docs/orm/tools/prisma-cli)
+2. Confirm there is a Neon connection string (either `neon_database_url` input or detectable from `.env`, `.env.local`, or deployment secrets). [neon](https://neon.tech/docs/guides/prisma-migrations)
+3. Determine if the project is an existing database (schema already in Neon) or a new schema (no tables yet) by user indication or existing migrations. [neon](https://neon.com/docs/guides/prisma-migrations)
+
+### Step 2: Configure DATABASE_URL for Neon
+
+1. Ensure an env file exists at `env_file` (default `.env`), creating it if necessary.  
+2. Write or update `DATABASE_URL` to use the Neon connection string, appending `?sslmode=require` (and any Neon-recommended flags such as `channel_binding=require` if indicated by Neon console). [newiatech](https://www.newiatech.com/docs/guides/prisma)
+3. Instruct to keep `DATABASE_URL` secret and not hard-code it in application code or commit it to version control. [newiatech](https://www.newiatech.com/docs/guides/prisma)
+
+### Step 3: Configure Prisma Schema for Neon
+
+1. Open or create `prisma/schema.prisma`. [prisma](https://www.prisma.io/docs/orm/tools/prisma-cli)
+2. Ensure the `datasource` block uses the `postgresql` provider and references `DATABASE_URL`, for example:  
+   - `datasource db { provider = "postgresql"; url = env("DATABASE_URL") }`. [prisma](https://www.prisma.io/docs/orm/overview/databases/neon)
+3. If the schema is new (no existing DB schema), define or refine models according to the application domain, following Prisma Schema reference for types, relations, and attributes. [prisma](https://www.prisma.io/docs/orm/reference/prisma-cli-reference)
+
+### Step 4: Choose and Run the Proper Prisma Workflow
+
+1. If the database schema already exists in Neon (migrated or manually created), run an introspection workflow:  
+   - `prisma db pull` to sync the current Neon schema into `schema.prisma`. [prisma](https://www.prisma.io/docs/orm/reference/prisma-cli-reference)
+   - Then run `prisma generate` to regenerate Prisma Client. [prisma](https://www.prisma.io/docs/orm/tools/prisma-cli)
+2. If you are in active development and want migration tracking:  
+   - Use `prisma migrate dev` to create and apply migrations from the current `schema.prisma` to Neon. [neon](https://neon.com/docs/guides/prisma-migrations)
+   - After running migrations, run `prisma generate`. [prisma](https://www.prisma.io/docs/orm/tools/prisma-cli)
+3. If you are prototyping and want quick sync without migrations history:  
+   - Use `prisma db push` to push schema changes to Neon (not recommended for production workflows). [prisma](https://www.prisma.io/docs/orm/overview/databases/neon)
+
+### Step 5: Verify Prisma Client Usage With Neon
+
+1. In the application code, ensure `PrismaClient` is imported and instantiated once per process (or with recommended re-use pattern for hot-reload frameworks), using the default connection from `DATABASE_URL`. [prisma](https://www.prisma.io/docs/orm/overview/databases/neon)
+2. Run a minimal health check query, such as `await prisma.$queryRaw` or `await prisma.user.findFirst()` (or equivalent model) to verify connectivity and SSL settings. [prisma](https://www.prisma.io/docs/orm/overview/databases/neon)
+3. Handle any `P1001` connection errors by checking: correct hostname/port, `sslmode` flags, correct password, Neon project status, and IP restrictions if applicable. [dev](https://dev.to/nahom_kasa_a3859f822d2b4c/prisma-neon-db-error-p1001-explained-with-pizza--5hho)
+
+### Step 6: Align Prisma Migrations With Neon Branching (Optional)
+
+1. If the project uses Neon database branching for preview environments, align Prisma workflows by using a distinct `DATABASE_URL` per branch (often injected via environment variables or CI/CD). [neon](https://neon.com/blog/branching-with-preview-environments)
+2. For preview branches, prefer `prisma migrate deploy` or `prisma db push` based on whether you keep migrations history or ephemeral schemas. [neon](https://neon.com/docs/guides/prisma-migrations)
+3. Document how migrations are applied in each environment (local, staging, production) and ensure no accidental destructive changes are run directly against production without review. [neon](https://neon.tech/docs/guides/prisma-migrations)
+
+### Step 7: Final Verification and Documentation
+
+1. Run schema validation via `prisma validate` and formatting via `prisma format` to ensure the schema is syntactically correct and follows conventions. [prisma](https://www.prisma.io/docs/orm/reference/prisma-cli-reference)
+2. Run the test suite or at least a small integration test hitting Neon through Prisma to confirm that queries work end-to-end. [neon](https://neon.com/docs/guides/prisma-migrations)
+3. Update or create project documentation describing: Neon connection configuration, Prisma migration commands per environment, and any special flags (SSL, pooling). [neon](https://neon.tech/docs/guides/prisma-migrations)
+
+## Success Criteria
+
+- [ ] `DATABASE_URL` is configured using the Neon connection string with appropriate SSL parameters, and secrets are stored securely (env or secret manager). [newiatech](https://www.newiatech.com/docs/guides/prisma)
+- [ ] `prisma/schema.prisma` has a `datasource db` configured with `provider = "postgresql"` and `url = env("DATABASE_URL")`. [neon](https://neon.com/docs/guides/prisma-migrations)
+- [ ] Prisma commands (`db pull`, `migrate dev` / `migrate deploy`, `db push`, `generate`, `validate`) run successfully without errors. [prisma](https://www.prisma.io/docs/orm/reference/prisma-cli-reference)
+- [ ] Application code can perform at least one successful query against Neon using Prisma Client. [neon](https://neon.tech/docs/guides/prisma-migrations)
+- [ ] Migrations strategy is clearly defined and aligned with Neon environments/branches, with no accidental destructive operations in production. [neon](https://neon.tech/docs/guides/prisma-migrations)
+
+## Best Practices
+
+- Prefer `prisma migrate dev` / `migrate deploy` for long-lived environments to keep a migration history; use `db push` mainly for prototypes. [prisma](https://www.prisma.io/docs/orm/tools/prisma-cli)
+- Store `DATABASE_URL` and other Neon secrets in environment variables or secret managers, never commit them to git. [newiatech](https://www.newiatech.com/docs/guides/prisma)
+- Use `prisma validate` and `prisma format` regularly to keep the schema tidy and avoid subtle errors. [prisma](https://www.prisma.io/docs/orm/reference/prisma-cli-reference)
+- Align Neon branches with app environments, ensuring each environment uses the correct `DATABASE_URL` and migration workflow. [neon](https://neon.com/blog/branching-with-preview-environments)
+- Monitor performance and connection usage; consider pooling options or Neon Accelerate if the framework opens many concurrent connections. [newiatech](https://www.newiatech.com/docs/guides/prisma)
+
+## Common Pitfalls
+
+- Misconfiguring `DATABASE_URL` (missing `sslmode=require` or using a wrong connection string from Neon) leading to `P1001` or TLS errors. [newiatech](https://www.newiatech.com/docs/guides/prisma)
+- Mixing `db push` and `migrate` workflows in the same environment, causing drift between Prisma schema, migrations, and Neon schema. [prisma](https://www.prisma.io/docs/orm/overview/databases/neon)
+- Forgetting to run `prisma generate` after schema changes or introspection, leading to runtime client mismatches. [prisma](https://www.prisma.io/docs/orm/tools/prisma-cli)
+- Running unreviewed migrations directly against production without backup or rollback plan. [neon](https://neon.tech/docs/guides/prisma-migrations)
+- Instantiating multiple `PrismaClient` instances in hot-reload environments, which can exhaust connections or cause performance issues. [prisma](https://www.prisma.io/docs/orm/overview/databases/neon)
+
+## References
+
+- [Prisma + Neon overview](https://www.prisma.io/docs/orm/overview/databases/neon) [prisma](https://www.prisma.io/docs/orm/overview/databases/neon)
+- [Neon Prisma migrations guide](https://neon.com/docs/guides/prisma-migrations) [neon](https://neon.com/docs/guides/prisma-migrations)
+- [Prisma CLI reference](https://www.prisma.io/docs/orm/tools/prisma-cli) [prisma](https://www.prisma.io/docs/orm/reference/prisma-cli-reference)
+- [Prisma schema reference](https://www.prisma.io/docs/orm/reference/prisma-schema-reference) [neon](https://neon.tech/docs/guides/prisma-migrations)
+- [Neon connection from Prisma (alternative reference)](https://www.prisma.io/docs/orm/overview/databases/neon) [prisma](https://www.prisma.io/docs/orm/overview/databases/neon)
+
+***
+
+### Supporting Files
+
+**.factory/skills/neon-prisma-orm-setup/references.md**
+
+```markdown
+# Neon + Prisma References
+
+- Prisma + Neon overview: https://www.prisma.io/docs/orm/overview/databases/neon [web:3]  
+- Neon Prisma migrations: https://neon.com/docs/guides/prisma-migrations [web:7][web:21]  
+- Prisma CLI reference: https://www.prisma.io/docs/orm/tools/prisma-cli [web:22][web:26]  
+- Prisma schema reference: https://www.prisma.io/docs/orm/reference/prisma-schema-reference [web:3][web:21]  
+```
+
+**.factory/skills/neon-prisma-orm-setup/checklists.md**
+
+```markdown
+# Neon Prisma Setup Checklist
+
+- [ ] Neon project and database exist. [web:7][web:21]  
+- [ ] Neon connection string copied from console. [web:7][web:21]  
+- [ ] DATABASE_URL set with sslmode=require (and any recommended extra parameters). [web:21][web:28]  
+- [ ] prisma/schema.prisma datasource uses provider = "postgresql" and url = env("DATABASE_URL"). [web:3][web:7]  
+- [ ] Chosen workflow: db pull (existing DB) OR migrate dev (migrations) OR db push (prototype) is documented. [web:3][web:7][web:22]  
+- [ ] prisma generate run after schema changes. [web:22]  
+- [ ] prisma validate and prisma format pass. [web:22][web:26]  
+- [ ] Application can run a sample query against Neon via Prisma Client. [web:3][web:21]  
+```
+
+**.factory/skills/neon-prisma-orm-setup/examples/example-usage.ts**
+
+```ts
+import { PrismaClient } from '@prisma/client';
+
+const prisma = new PrismaClient();
+
+async function main() {
+  // Minimal health check query against Neon via Prisma
+  const now = await prisma.$queryRaw`SELECT NOW()`;
+  console.log('Neon time:', now);
+
+  // Replace `User` with an actual model from your schema
+  // const user = await prisma.user.findFirst();
+  // console.log('Sample user:', user);
+}
+
+main()
+  .catch((e) => {
+    console.error('Prisma + Neon error', e);
+    process.exit(1);
+  })
+  .finally(async () => {
+    await prisma.$disconnect();
+  });
+```
+
+
+
+***
+
+### Design Choices (breve)
+
+- **Trigger conditions**: centrati sul caso “ORM = Prisma con Neon” perché la skill originale Neon privilegia Drizzle e driver, e tu vuoi evitare ambiguità quando l’agente vede Prisma. [github](https://github.com/neondatabase/agent-skills)
+- **Granularità**: una sola capability ben definita (setup e gestione Prisma+Neon), lasciando ad altre skill eventuali cose come “query optimization” o “Neon branching workflows avanzati”. [github](https://github.com/neondatabase/agent-skills)
+- **Composizione**: questa skill può essere chainata con una generica skill “using-neon” (per branching/API) o con skill di “schema design” o “SQL optimization”, usando `DATABASE_URL` e schema come contratti I/O. [github](https://github.com/neondatabase/agent-skills)
+
+### Usage Examples
+
+Puoi chiedere al droid:
+
+- “Configura Prisma ORM per usare il database Neon di questo progetto, aggiornando schema.prisma e le migrazioni.” [neon](https://neon.com/docs/guides/prisma-migrations)
+- “Abbiamo già tabelle su Neon, sincronizza lo schema Prisma e genera Prisma Client.” [prisma](https://www.prisma.io/docs/orm/tools/prisma-cli)
+- “Stiamo usando Neon con branching per preview: imposta i workflow Prisma per ogni ambiente.” [neon](https://neon.com/blog/branching-with-preview-environments)
+
+### Testing & Validation Suggestions
+
+- Esegui `prisma validate`, `prisma format`, quindi `prisma generate` e il comando di migrazione scelto. [prisma](https://www.prisma.io/docs/orm/reference/prisma-cli-reference)
+- Lancia un test di integrazione che esegue almeno un `SELECT NOW()` e una query su un modello reale. [neon](https://neon.tech/docs/guides/prisma-migrations)
+- In ambienti CI, verifica che le migrazioni girino contro una Neon branch dedicata, non contro produzione. [neon](https://neon.com/docs/guides/prisma-migrations)
+
+### Related Skills Recommendations
+
+- `using-neon` (skill esistente) per driver, branching e API Neon generali. [github](https://github.com/neondatabase/agent-skills)
+- `neon-branching-preview-envs` per gestire database per ogni PR / preview environment. [neon](https://neon.com/blog/branching-with-preview-environments)
+- `sql-query-optimizer` per migliorare query Prisma/SQL su Neon quando emergono problemi di performance. [neon](https://neon.tech/docs/guides/prisma-migrations)
+
+Se vuoi, nel prossimo passo posso adattare il nome/description esattamente al tuo naming convention di skills Factory e produrre la struttura directory completa pronta da incollare in `.factory/skills/neon-prisma-orm-setup/`.

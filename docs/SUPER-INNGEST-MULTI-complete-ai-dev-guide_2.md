@@ -3,7 +3,7 @@
 ## 📖 Complete Report (Phases 1-7)
 
 ---
-
+tags: [inngest, patterns, advanced, outdated]
 ## 🎯 Vision: Unified Research & Content Pipeline
 
 Merging **Inngest-RESEARCH---Next-15** (Context Engineering) + **agent-kit/deep-research** (Multi-agent Research) into a single **Research & Publishing Suite** with:

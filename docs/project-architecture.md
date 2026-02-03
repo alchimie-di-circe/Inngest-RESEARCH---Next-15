@@ -1,3 +1,9 @@
+---
+tags: [architecture, all-agents]
+description: 5-layer system architecture, data flow, and service interactions
+alwaysApply: false
+---
+
 # Project Architecture - Research & Publishing Suite
 
 ## System Overview
