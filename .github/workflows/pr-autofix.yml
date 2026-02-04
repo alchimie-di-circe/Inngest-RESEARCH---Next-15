@@ -1,0 +1,193 @@
+name: PR Auto-Fix Handler
+
+on:
+  issue_comment:
+    types: [created, edited]
+
+permissions:
+  contents: write
+  pull-requests: write
+  checks: read
+  repository: read
+
+env:
+  GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+jobs:
+  pr-autofix:
+    if: |
+      github.event.issue.pull_request &&
+      contains(github.event.comment.body, '@kilo-autofix')
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          fetch-depth: 0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Parse webhook payload
+        id: parse-payload
+        env:
+          COMMENT_BODY: ${{ github.event.comment.body }}
+          PR_NUMBER: ${{ github.event.issue.number }}
+          REPO_FULL_NAME: ${{ github.repository }}
+        run: |
+          echo "comment_body=${COMMENT_BODY}" >> $GITHUB_ENV
+          echo "pr_number=${PR_NUMBER}" >> $GITHUB_ENV
+          echo "repo_full_name=${REPO_FULL_NAME}" >> $GITHUB_ENV
+
+      - name: Check for @kilo-autofix trigger
+        id: check-trigger
+        run: |
+          if echo "${{ env.comment_body }}" | grep -q "@kilo-autofix"; then
+            echo "triggered=true" >> $GITHUB_ENV
+            echo "Trigger detected: @kilo-autofix mentioned"
+          else
+            echo "triggered=false" >> $GITHUB_ENV
+            echo "No trigger found"
+            exit 1
+          fi
+
+      - name: Fetch PR information
+        id: fetch-pr
+        env:
+          PR_NUMBER: ${{ env.pr_number }}
+        run: |
+          echo "Fetching PR #${PR_NUMBER} information..."
+          gh pr view $PR_NUMBER --repo ${{ env.repo_full_name }} --json title,body,author,baseRefName,headRefName,state,isDraft > pr_info.json
+          echo "PR information fetched"
+          cat pr_info.json
+
+      - name: Fetch all PR review comments
+        id: fetch-comments
+        env:
+          PR_NUMBER: ${{ env.pr_number }}
+        run: |
+          echo "Fetching review comments..."
+          gh pr review $PR_NUMBER --repo ${{ env.repo_full_name }} --json body,state,comments > pr_reviews.json
+          gh pr comments $PR_NUMBER --repo ${{ env.repo_full_name }} --json body,author,createdAt > pr_comments.json
+          echo "Comments fetched"
+          cat pr_comments.json | head -100
+
+      - name: Run analyze-reviews script
+        id: analyze-reviews
+        env:
+          PR_NUMBER: ${{ env.pr_number }}
+        run: |
+          echo "Running analyze-reviews..."
+          npx tsx scripts/pr-autofix/analyze-reviews.ts \
+            --pr-number $PR_NUMBER \
+            --output scripts/pr-autofix/review-analysis.json \
+            --repo ${{ env.repo_full_name }}
+          echo "Analysis complete"
+          cat scripts/pr-autofix/review-analysis.json
+
+      - name: Generate fix plan
+        id: generate-plan
+        run: |
+          echo "Generating fix plan..."
+          node scripts/pr-autofix/generate-plan.js
+          echo "Plan generated"
+
+      - name: Run apply-fixes script
+        id: apply-fixes
+        env:
+          PR_NUMBER: ${{ env.pr_number }}
+        run: |
+          echo "Applying fixes..."
+          npx tsx scripts/pr-autofix/apply-fixes.ts \
+            --plan scripts/pr-autofix/fix-plan.json \
+            --repo ${{ env.repo_full_name }}
+          echo "Fixes applied"
+
+      - name: Run tests
+        id: run-tests
+        run: |
+          echo "Running tests..."
+          npm run pr-autofix:test
+          echo "Tests complete"
+
+      - name: Check for changes
+        id: check-changes
+        run: |
+          if git diff --quiet; then
+            echo "No changes to commit"
+            echo "has_changes=false" >> $GITHUB_ENV
+          else
+            echo "Changes detected"
+            echo "has_changes=true" >> $GITHUB_ENV
+            git status
+            git diff --stat
+          fi
+
+      - name: Commit changes
+        if: env.has_changes == 'true'
+        id: commit-changes
+        env:
+          PR_NUMBER: ${{ env.pr_number }}
+        run: |
+          echo "Committing changes..."
+          
+          # Create a summary of changes
+          CHANGES_SUMMARY=$(git diff --stat)
+          
+          # Get PR info for commit message
+          PR_TITLE=$(gh pr view $PR_NUMBER --repo ${{ env.repo_full_name }} --json title --jq '.title')
+          
+          # Commit with descriptive message
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          
+          git add -A
+          git commit -m "fix($PR_NUMBER): Apply auto-fixes from review comments
+
+Auto-fixed issues from review comments on PR #$PR_NUMBER
+
+Summary of changes:
+$CHANGES_SUMMARY
+
+Generated by @kilo-autofix"
+
+          # Push to PR branch
+          git push origin HEAD:${{ env.repo_full_name }}-$PR_NUMBER || true
+
+      - name: Generate summary report
+        id: generate-report
+        run: |
+          echo "Generating summary report..."
+          node scripts/pr-autofix/generate-report.js
+          echo "Report generated"
+
+      - name: Post summary comment on PR
+        if: always()
+        env:
+          PR_NUMBER: ${{ env.pr_number }}
+        run: |
+          gh pr comment $PR_NUMBER \
+            --repo ${{ env.repo_full_name }} \
+            --body "## @kilo-autofix Summary
+
+✅ Auto-fix process completed
+
+**Changes applied:**
+$(git diff --stat --short 2>/dev/null || echo 'No changes')
+
+**Status:** $([ "${{ job.status }}" == "success" ] && echo "Success" || echo "Failed")
+
+_This response was generated by the @kilo-autofix workflow._"
+
+      - name: Cleanup
+        run: |
+          echo "Cleaning up temporary files..."
+          rm -f pr_info.json pr_reviews.json pr_comments.json
+          echo "Done"

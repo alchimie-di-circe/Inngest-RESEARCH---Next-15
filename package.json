@@ -22,7 +22,11 @@
     "setup:1password": "op account add && direnv allow",
     "verify:env": "node scripts/verify-env.js",
     "upload-pdf": "tsx scripts/upload-pdf-to-pinecone.ts",
-    "test-pinecone": "tsx scripts/test-pinecone-connection.ts"
+    "test-pinecone": "tsx scripts/test-pinecone-connection.ts",
+    "pr-autofix:analyze": "tsx scripts/pr-autofix/analyze-reviews.ts",
+    "pr-autofix:apply": "tsx scripts/pr-autofix/apply-fixes.ts",
+    "pr-autofix:test": "npm run type-check && npm run lint",
+    "pr-autofix:commit": "git add -A && git commit -m 'fix: Apply auto-fixes from PR review' && git push"
   },
   "dependencies": {
     "@ai-sdk/anthropic": "^2.0.0",
@@ -57,6 +61,7 @@
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "@types/ws": "^8.18.1",
+    "argparse": "^2.0.1",
     "concurrently": "^8.2.2",
     "eslint": "^9",
     "eslint-config-next": "15.5.7",
