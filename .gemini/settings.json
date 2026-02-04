@@ -35,7 +35,7 @@
     "container-use": {
       "command": "container-use",
       "args": ["stdio"],
-      "timeout": 60000,
+      "timeout": 600000,
       "trust": true
     }
   }

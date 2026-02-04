@@ -16,3 +16,17 @@ export interface AuditDetails {
   ipAddress: string;
   user: string;
 }
+
+export type {
+  ResearchContext,
+  AgentRun,
+  ResearchJob,
+  BrandConfig,
+  ContentItem,
+  PublishingQueue,
+  AgentAuditLog,
+  JobStatus,
+  TabType,
+  ContentStatus as DBContentStatus,
+  Platform as DBPlatform
+} from '@prisma/client';
