@@ -1,0 +1,9 @@
+[mcp_servers.container-use]
+command = "container-use"
+args = ["stdio"]
+env = {}
+
+[mcp_servers.testsprite]
+command = "bash"
+args = ["-lc", "API_KEY=\"$TESTSPRITE_API_KEY\" npx -y @testsprite/testsprite-mcp@latest"]
+env_vars = ["TESTSPRITE_API_KEY"]

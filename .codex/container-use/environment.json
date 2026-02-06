@@ -1,0 +1,10 @@
+{
+  "workdir": "/workdir",
+  "base_image": "node:20-bookworm",
+  "setup_commands": [
+    "apt-get update && apt-get install -y python3 python3-venv"
+  ],
+  "install_commands": [
+    "npm ci"
+  ]
+}
