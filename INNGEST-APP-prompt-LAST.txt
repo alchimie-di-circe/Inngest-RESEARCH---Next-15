@@ -1,0 +1,53 @@
+## Obiettivo: completare il ciclo frontend TestSprite per questo repo in Codespace.
+
+#  Contesto:
+
+  - PHASE2-COMBINED-PRD.md = fonte requisiti principale.
+  - testsprite_tests/testsprite-mcp-test-report.md = backend già validato (96%).
+  - Stato: T11/T12/T3/T14 considerati backend-ready; focus ora su frontend integration/e2e.
+  - Obiettivo frontend: Deep Research UI (depth/breadth, status realtime, report view) + integrazione API.
+  - Vincolo: non toccare feature backend già verdi se non per fix bloccanti build/test.
+  - Output richiesto: report TestSprite, bug list prioritaria, patch minima proposta.
+
+#  Vincoli:
+  - Non fare commit/push direttamente a fine task, presenta report operazione + chiedi prima conferma a utente
+
+#  Task:
+  
+  Esegui in questo ordine:
+
+  1) Pre-check ambiente
+  - Verifica `TESTSPRITE_API_KEY` presente.
+  - Verifica MCP server `testsprite` attivo con `codex mcp list`.
+
+  2) Build frontend
+  - Esegui `npm run build`.
+  - Se fallisce, applica fix minimi e riprova finché build passa.
+
+  3) Avvio app per test frontend
+  - Verifica raggiungibilità con `curl http://localhost:3000`.
+  - Mantieni server attivo.
+
+  4) TestSprite frontend cycle
+  - Prima prova percorso senza bootstrap UI:
+    - `testsprite_generate_code_summary`
+    - `testsprite_generate_frontend_test_plan` (needLogin: false)
+    - `testsprite_generate_code_and_execute` con `additionalInstruction` che includa focus su Task 4 UI (Deep Research form/sliders/status/
+  upload PRD), poi riprendi automaticamente il flusso.
+
+  5) Output finale
+  - Riporta:
+    - esito build
+    - test eseguiti/passed/failed
+    - file report generati in `testsprite_tests/`
+    - prossimi fix consigliati ordinati per priorità.
+
+  - Dai docs TestSprite: nel “first test” la configurazione via portal è indicata come Required. Quindi bypass totale non è garantito al
+
+#  Fonti:
+
+  - Codex CLI install: https://developers.openai.com/codex/cli
+  - Codex MCP config: https://developers.openai.com/codex/mcp/
+  - TestSprite tools: https://docs.testsprite.com/mcp/core/tools
+  - TestSprite first test (config required): https://docs.testsprite.com/mcp/getting-started/first-test
+  - TestSprite install prereq (Node >=22): https://docs.testsprite.com/mcp/getting-started/installation
