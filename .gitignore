@@ -69,3 +69,4 @@ node_modules/
 # Task files
 # tasks.json
 # tasks/ 
+testsprite_tests/tmp/

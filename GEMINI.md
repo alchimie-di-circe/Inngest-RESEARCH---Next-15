@@ -35,6 +35,7 @@ Before starting a task, verify if you need specific context. Search for these ta
 | Context Needed | Search Tag | Primary Documentation |
 |----------------|------------|-----------------------|
 | **Development Workflow** | `#container` | `.factory/rules/rule-mcp-container-use-QUICKSTART.md` |
+| **Robust CLI Workflow** | `#container-cli` | `.gemini/rules/rule-mcp-container-use-robust-cli-workflow.md` |
 | **Inngest / Agents** | `#agentkit` | `docs/agentkit/advanced-patterns.md` |
 | **Database / ORM** | `#prisma` | `docs/prisma/neon-guide.md` |
 | **Testing Patterns** | `#testing` | `docs/mcp-server-instructions/testsprite-mcp-guide.md` |
@@ -46,24 +47,29 @@ Before starting a task, verify if you need specific context. Search for these ta
 ## 🛠️ DEVELOPMENT WORKFLOWS
 
 ### A. Feature Implementation (Container-First)
-**Preferred method for all coding tasks.**
+**Preferred method for all coding tasks ONLY IF Container-Use mcp server is connected to the cli agent (codex cli, droid cli, claude code, gemini cli, kilocode cli, ecc).**
+
+**IF Container-use mcp server is not connected CHECK THE ENVIRONMENT: IF you are in a GITHUB CODESPACE then you can operate YOLO**
+
+**IF you are operating in a local environment (host machine) NEVER RUN INSTALL or BUILD commands (except for direct and explicit user request)**
 
 1.  **Setup**: Initialize a Dagger container using `container-use`.
+    *   **Pro Tip**: Use CLI commands (`container-use create`) over MCP tools to avoid timeouts on heavy installs. See `#container-cli`.
     ```bash
     # Example internal thought process
     # User asks: "Implement Task 4"
     # Action: Spin up container -> npm install -> Ready to code
     ```
 2.  **Develop**: Write code using `write_file` into the mounted workspace.
-3.  **Verify**: Run tests *inside* the container.
+3.  **Verify**: Run tests *inside* the container via CLI/Docker.
     ```bash
-    # Inside container
+    # Inside container (via docker exec or container-use terminal)
     npm run test:unit
     ```
 4.  **Finalize**: Once green, commit changes via local git.
 
 ### B. Testing & Validation
-Use the specific MCPs configured in `.mcp.json`.
+Use the specific MCP servers configured in `.gemini/settings.json` if connected (if one or more of them are not connencted, inform the user and elaborate an alternative workflow, using the other mcp connected and agent browser cli
 
 *   **TestSprite**: `mcp invoke testsprite --test <file>` for standalone integration tests.
 *   **Wallaby**: Use for real-time TDD feedback if the user has the IDE extension active.

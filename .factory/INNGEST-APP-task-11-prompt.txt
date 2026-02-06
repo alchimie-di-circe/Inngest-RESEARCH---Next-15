@@ -1,0 +1,489 @@
+Jules è già andato piuttosto avanti nella “Phase 2” e ti sta chiedendo una cosa molto specifica sulla UI.
+
+1. Stato di avanzamento per i 5 PRP
+
+Vado per blocchi come nel piano che vedi in Jules.
+
+Task 11 – Typescript types & Inngest event schemas
+
+Secondo il log di Jules, questo blocco è segnato come completato:
+
+- Ha creato:
+
+ ▫ ‎⁠src/types/research.ts⁠
+
+ ▫ ‎⁠src/types/content.ts⁠
+
+ ▫ ‎⁠src/types/events.ts⁠
+
+- Ha aggiornato:
+
+ ▫ ‎⁠src/types/db.ts⁠ per esportare i tipi Prisma
+
+ ▫ ‎⁠src/inngest/client.ts⁠ per usare gli schemi di eventi (ha menzionato “strict typing (fromRecord)” e poi nei commit successivi ha rifinito l’uso degli schemi)
+
+- Ha sistemato errori di tipo in ‎⁠db.ts⁠ e ‎⁠openai.ts⁠.
+
+In pratica: la parte “fondazione tipi + schemi eventi” del PRP 11 è stata implementata e passa ‎⁠tsc⁠.
+
+Task 12 – Testing infrastructure (Jest + Playwright)
+
+Anche questa risulta marcata come completata nel blocco “Foundation step”:
+
+- ‎⁠jest.config.js⁠ aggiornato (testMatch esteso per includere ‎⁠tests/**⁠, coverage thresholds aggiunti).
+
+- Installato ‎⁠jest-mock-extended⁠ (aggiornamenti in ‎⁠package.json⁠ e ‎⁠package-lock.json⁠).
+
+- Creati:
+
+ ▫ ‎⁠tests/setup/mock-prisma.ts⁠
+
+ ▫ ‎⁠tests/setup/mock-inngest.ts⁠
+
+ ▫ ‎⁠tests/fixtures/brands.ts⁠
+
+- Ha eseguito una prima verifica con TypeScript.
+
+Quindi la base di mocking (Prisma, Inngest) e struttura test c’è.
+
+Task 3 – Brand Configuration Management
+
+Nel log è indicato come “Completed Data & Management step”:
+
+- Prisma
+
+ ▫ ‎⁠prisma/schema.prisma⁠ aggiornato: ‎⁠BrandConfig⁠ esteso (almeno ‎⁠brandColors⁠, ‎⁠logoUrl⁠, ‎⁠platformHistory⁠, ‎⁠tovGuidelines⁠; dice anche che ha toccato ‎⁠ResearchJob⁠).
+
+- Types
+
+ ▫ Creato ‎⁠src/types/brand.ts⁠ con Zod schemas per Brand.
+
+- API
+
+ ▫ ‎⁠src/app/api/brand/route.ts⁠ (GET, POST)
+
+ ▫ ‎⁠src/app/api/brand/[id]/route.ts⁠ (GET, PUT, DELETE)
+
+- UI
+
+ ▫ ‎⁠src/components/brand/brand-form.tsx⁠
+
+ ▫ ‎⁠src/components/brand/brand-list.tsx⁠
+
+ ▫ ‎⁠src/components/brand/brand-selector.tsx⁠
+
+Dice espressamente di aver verificato con ‎⁠tsc⁠. Mancano solo, eventualmente, test E2E e polish, ma la funzionalità base è lì.
+
+Task 14 – API Routes per research/project/content/publishing
+
+Nel log c’è “Completed API Layer step”:
+
+- Creato ‎⁠src/types/api.ts⁠ (Zod schemas per le richieste).
+
+- Aggiornato ‎⁠prisma/schema.prisma⁠ per supportare meglio ‎⁠ResearchJob⁠ e coerenza con le API.
+
+- Creati:
+
+ ▫ ‎⁠src/app/api/research/route.ts⁠ (GET list, POST create + trigger Inngest)
+
+ ▫ ‎⁠src/app/api/research/[id]/route.ts⁠ (GET, PUT, DELETE)
+
+ ▫ ‎⁠src/app/api/research/[id]/status/route.ts⁠ (GET status)
+
+ ▫ ‎⁠src/app/api/content/route.ts⁠ (GET, POST)
+
+ ▫ ‎⁠src/app/api/publishing/route.ts⁠ (GET, POST)
+
+- Nota importante: ha deliberatamente “skippato” la Project API dicendo che, con lo schema attuale, sarebbe quasi un duplicato della Brand API.
+
+Quindi Task 14 è coperto per research/content/publishing; “project” è volutamente non implementato per ora.
+
+Task 4 – Deep Research Agent refactor
+
+Questa è dichiarata in corso, non completata:
+
+Jules dice:
+
+I am currently refactoring the Core Deep Research Agent.
+Progress:
+
+1. Refactored ‎⁠orchestrator.ts⁠ …
+
+2. Refactored ‎⁠gather-context.ts⁠ …
+
+3. Updated ‎⁠websearch.ts⁠, ‎⁠arxiv.ts⁠, ‎⁠github.ts⁠, ‎⁠vectordb.ts⁠ …
+
+E nei “Next steps” elenca:
+
+1. Aggiornare la UI ‎⁠src/app/(dashboard)/deep/page.tsx⁠ per supportare input ‎⁠depth⁠ e ‎⁠breadth⁠.
+
+2. Aggiornare ‎⁠src/app/actions.ts⁠ per il nuovo evento ‎⁠deep.research.requested⁠ e relativi parametri.
+
+3. Eseguire i test di verifica.
+
+Quindi lato backend/agent il grosso è stato fatto:
+
+- orchestratore spostato su ‎⁠deep.research.requested⁠,
+
+- supporto per ‎⁠depth⁠/‎⁠breadth⁠,
+
+- sorgenti aggiornate per usare il parametro ‎⁠limit⁠.
+
+Manca:
+
+- wiring completo UI ↔ Inngest (form + server action),
+
+- eventuali rifiniture su Realtime/Checkpointing (non descritte in dettaglio nel log, ma il PRP le richiede).
+
+2. Cosa ti sta chiedendo esattamente Jules sulla UI
+
+Alla fine del log, Jules ti chiede:
+
+“Do you have any specific requirements for the UI sliders or default values for depth/breadth? Default is currently set to 3 for both.”
+
+Tradotto e contestualizzato:
+
+- Sta per aggiornare la pagina ‎⁠deep⁠ del dashboard (il “ResearchForm” per la Deep Research).
+
+- Vuole introdurre due controlli UI (tipicamente slider o input numerici) per:
+
+ ▫ ‎⁠depth⁠ (quanto profondamente deve scavare, 1–5),
+
+ ▫ ‎⁠breadth⁠ (quanti risultati / quante direzioni deve coprire, 1–5).
+
+- Ha impostato un default di 3 per entrambi, ma ti chiede:
+
+ ▫ Se vuoi valori min/max particolari (es. 1–5 vs 1–10),
+
+ ▫ Se vuoi step specifici (solo interi, slider o altri componenti),
+
+ ▫ Se ci sono requisiti di UX (etichette, descrizioni tipo “Light / Standard / Deep”, ecc.),
+
+ ▫ E se il default 3/3 ti va bene o preferisci altro (es. 2 “economico”, 4 “accurato”).
+
+In breve: ti sta chiedendo di confermare o cambiare:
+
+- il range degli slider ‎⁠depth⁠ e ‎⁠breadth⁠,
+
+- i valori di default (ora 3 e 3),
+
+- eventuale specifica sul design/UX (come mostrarli, testo, tooltip, ecc.).
+
+Se vuoi una risposta operativa da dare a Jules, ad esempio potresti decidere qualcosa del tipo:
+
+- Range: 1–5, solo interi.
+
+- Default: ‎⁠depth = 3⁠, ‎⁠breadth = 3⁠.
+
+- Label:
+
+ ▫ depth: “Quanto in profondità deve andare la ricerca (1 = superficiale, 5 = molto approfondita)”.
+
+ ▫ breadth: “Quante piste/fonti deve esplorare (1 = poche mirate, 5 = molte varie)”.
+
+e glielo comunichi così, lui può chiudere Task 4 lato UI.
+
+
+
+
+
+A livello di macro‑blocchi, hai quasi tutto, ma mancano ancora alcuni pezzi “di rifinitura” e di verifica per poter dire che l’intera fase (PRP 11, 12, 3, 14, 4) è davvero chiusa.
+
+Ti riassumo per task, solo ciò che è ancora aperto o potenzialmente incompleto.
+
+PRP 11 – Types & Inngest Event Schemas
+
+La struttura base è fatta, però per chiuderlo davvero bene servirebbe:
+
+- Allineare definitivamente il client Inngest a ‎⁠EventSchemas.fromZod()⁠: nei log Jules dice di aver messo “strict typing (fromRecord)”, poi ha aggiornato ancora ‎⁠client.ts⁠. Bisogna solo verificare che:
+
+ ▫ tutti gli eventi siano definiti in ‎⁠src/types/events.ts⁠ come Zod schema ‎⁠{ data: z.object({...}) }⁠,
+
+ ▫ ‎⁠new EventSchemas().fromZod({...})⁠ sia effettivamente in uso e non ci siano eventi “orfani” (es. ‎⁠context.research.*⁠, ‎⁠approval.*⁠, ‎⁠publishing.*⁠).
+
+- Completare gli event schemas: ti ha creato i principali, ma il PRP richiede un set completo:
+
+ ▫ ‎⁠deep.research.requested⁠ / ‎⁠.completed⁠
+
+ ▫ ‎⁠context.research.requested⁠ / ‎⁠.completed⁠
+
+ ▫ ‎⁠content.generation.requested⁠ / ‎⁠.generated⁠
+
+ ▫ ‎⁠content.design.requested⁠
+
+ ▫ ‎⁠approval.requested⁠ / ‎⁠.response⁠
+
+ ▫ ‎⁠publishing.shopify.requested⁠ (e simili)
+
+- Aggiungere test unitari dei pattern Zod (come da PRP):
+
+ ▫ es. ‎⁠src/types/__tests__/schemas.test.ts⁠ che verifica parse success/fail per i payload chiave (‎⁠DeepResearchRequestSchema⁠, eventi content/publishing, ecc.).
+
+PRP 12 – Testing Infrastructure
+
+La base Jest + mocks è in posto, ma rispetto al PRP completo mancano:
+
+- Verifica/aggiunta di coverageThreshold in ‎⁠jest.config.js⁠ esattamente come richiesto:
+
+ ▫ globale ≥ 80%,
+
+ ▫ ‎⁠src/inngest/**⁠ ≥ 90% (branches/lines/functions).
+
+- Playwright:
+
+ ▫ assicurarsi che ‎⁠playwright.config.ts⁠ sia configurato per CI (timeout, headless, retries) come indicato nel PRP,
+
+ ▫ avere almeno uno smoke E2E (anche minimo) in ‎⁠tests/e2e/⁠ che gira con ‎⁠npm run test:e2e⁠.
+
+- Aggiungere un paio di test di verifica dei mocks (il PRP suggeriva un ‎⁠verify-mocks.test.ts⁠ o simile):
+
+ ▫ uno che dimostra che ‎⁠prismaMock⁠ funziona,
+
+ ▫ uno che dimostra che ‎⁠createMockStep()⁠ di ‎⁠mock-inngest.ts⁠ funziona.
+
+- Controllare che gli script NPM siano completi:
+
+ ▫ ‎⁠test:unit⁠, ‎⁠test:integration⁠, ‎⁠test:e2e⁠, ‎⁠test:all⁠,
+
+ ▫ e che ‎⁠jest⁠ effettivamente includa sia ‎⁠src/**⁠ sia ‎⁠tests/**⁠ (questo sembra già fatto dai diff).
+
+PRP 3 – Brand Configuration Management
+
+Qui sei molto avanti. Le cose che tipicamente mancano/per chiudere il PRP:
+
+- Validare prisma/schema.prisma in runtime:
+
+ ▫ assicurarsi che ‎⁠BrandConfig⁠ abbia esattamente i campi descritti nel PRP (‎⁠name⁠, ‎⁠tovGuidelines⁠, ‎⁠brandColors⁠, ‎⁠logoUrl⁠, ‎⁠platformHistory⁠, ‎⁠brandKnowledge⁠),
+
+ ▫ che ‎⁠ResearchJob⁠ referenzi correttamente ‎⁠BrandConfig⁠ (e.g. ‎⁠brandConfigId⁠).
+
+- Comportamento dei JSON fields:
+
+ ▫ verificare che ‎⁠BrandForm⁠ serializzi/deserializzi ‎⁠brandColors⁠ e ‎⁠platformHistory⁠ correttamente (non stringhe grezze non parse).
+
+- UI integration:
+
+ ▫ montare ‎⁠BrandList⁠ + ‎⁠BrandForm⁠ + ‎⁠BrandSelector⁠ in una pagina di dashboard (ad es. ‎⁠/(dashboard)/context⁠ o dove hai deciso) in modo che il flusso CRUD sia effettivamente percorribile.
+
+- Minimo di test:
+
+ ▫ almeno uno unit test di ‎⁠BrandForm⁠ (render + validazione base),
+
+ ▫ almeno uno test API integration per ‎⁠/api/brand⁠ (create + read).
+
+PRP 14 – API Routes (Research, Content, Publishing)
+
+La struttura delle route c’è. Per completarlo pienamente:
+
+- Zod validation completa:
+
+ ▫ controllare che tutte le POST/PUT usino gli schemi definiti in ‎⁠src/types/api.ts⁠,
+
+ ▫ che gli errori ‎⁠ZodError⁠ vengano sempre mappati a 400 con struttura coerente ‎⁠{ error: [...] }⁠.
+
+- Error handling Prisma:
+
+ ▫ eventualmente normalizzare errori not‑found (404) vs errori generici (500) per tutte le route (‎⁠research⁠, ‎⁠content⁠, ‎⁠publishing⁠).
+
+- Inngest wiring:
+
+ ▫ verificare che ‎⁠POST /api/research⁠ invii effettivamente l’evento ‎⁠deep.research.requested⁠ (o ‎⁠context.research.requested⁠ in base al ‎⁠tabType⁠) con payload che rispetta lo schema in ‎⁠types/events.ts⁠.
+
+- Project routes:
+
+ ▫ decisione finale su cosa fare col “Project API”:
+
+ ⁃ o lo implementi davvero (anche minimo) per aderire al PRP,
+
+ ⁃ o mantieni la scelta di ometterlo ma allora va documentato come “non applicabile in questo schema”.
+
+- Test d’integrazione:
+
+ ▫ almeno una suite per ‎⁠/api/research⁠ che verifichi:
+
+ ⁃ 201 + record creato in DB + ‎⁠inngest.send⁠ mockato chiamato,
+
+ ⁃ 400 su payload invalido,
+
+ ⁃ 404 su accesso a id inesistente, ecc.
+
+PRP 4 – Deep Research Agent Refactor
+
+Questo è l’unico chiaramente aperto. Mancano:
+
+1. UI & server actions
+
+ ▫ Aggiornare ‎⁠src/app/(dashboard)/deep/page.tsx⁠:
+
+ ⁃ form con ‎⁠topic⁠, ‎⁠brandId⁠/brand selezionata, e slider ‎⁠depth⁠/‎⁠breadth⁠ (con le scelte che darai tu),
+
+ ⁃ wiring verso una server action che scatena l’evento Inngest.
+
+ ▫ Aggiornare ‎⁠src/app/actions.ts⁠:
+
+ ⁃ implementare la server action che:
+
+ ▪ valida con Zod l’input del form,
+
+ ▪ crea la ‎⁠ResearchJob⁠ iniziale (se serve lato API, qui puoi solo fare da proxy),
+
+ ▪ invia ‎⁠deep.research.requested⁠ con ‎⁠depth⁠, ‎⁠breadth⁠, ‎⁠userId⁠, ‎⁠sessionId⁠, ecc.
+
+ ⁃ implementare ‎⁠fetchResearchToken()⁠ per Realtime (se non l’ha già fatto), usando ‎⁠getSubscriptionToken⁠ + ‎⁠researchChannel⁠.
+
+2. Realtime streaming & UI status
+
+ ▫ Definire/controllare ‎⁠src/inngest/channels.ts⁠ con il ‎⁠researchChannel⁠ e topic ‎⁠deep-progress⁠.
+
+ ▫ Assicurare che l’orchestrator usi ‎⁠publish()⁠ in vari punti (staging / reasoning / reporting).
+
+ ▫ Creare il componente ‎⁠ResearchStatus⁠ (o simile) che usa ‎⁠useInngestSubscription⁠ e visualizza:
+
+ ⁃ messaggio corrente,
+
+ ⁃ progress bar,
+
+ ⁃ log degli step.
+
+ ▫ Creare/collegare una vista ‎⁠ResearchReport⁠ che mostri il ‎⁠DeepResearchReport⁠ finale salvato in ‎⁠ResearchJob.reportData⁠.
+
+3. Persistenza job completa
+
+ ▫ Verificare che l’orchestrator:
+
+ ⁃ crei il ‎⁠ResearchJob⁠ con stato ‎⁠RUNNING⁠,
+
+ ⁃ aggiorni intermediate state (opzionale, ma utile: progress, partial data),
+
+ ⁃ alla fine setti ‎⁠COMPLETED⁠ e ‎⁠reportData⁠ (e magari ‎⁠sourcesCount⁠, ecc.),
+
+ ⁃ invii ‎⁠deep.research.completed⁠ con payload coerente con gli schemi di PRP 11.
+
+4. Checkpointing
+
+ ▫ Verificare che la funzione Inngest sia definita con ‎⁠checkpointing: true⁠ e che i passi principali (‎⁠step.run⁠, ‎⁠step.invoke⁠) siano strutturati in modo che il beneficio di checkpointing sia reale (passi atomici, no mega‑blocchi monolitici).
+
+5. Test & verifica end‑to‑end
+
+ ▫ Unit test per:
+
+ ⁃ orchestrator (logica di creazione job e invio eventi),
+
+ ⁃ ‎⁠gatherContext⁠ con ‎⁠depth⁠/‎⁠breadth⁠ diversi,
+
+ ▫ (Opzionale ma ideale) un E2E Playwright che:
+
+ ⁃ compila il Deep Research form,
+
+ ⁃ vede lo streaming di stato,
+
+ ⁃ verifica che alla fine appare il report.
+
+Se vuoi una definizione molto sintetica: mancano soprattutto la parte UI + Realtime per Task 4, alcuni test/coverage e rifiniture sugli schemi/eventi (PRP 11/12/14), e un minimo di decisione/documentazione sul “Project API” del PRP 14. Tutto il resto è sostanzialmente implementato.
+
+
+
+
+
+
+Puoi assolutamente usare TestSprite MCP come “ciclo finale” in locale e non hai bisogno che Jules faccia tutto tutto, ma ci sono alcune cose che non conviene saltare su Jules e altre che invece puoi tranquillamente demandare a TestSprite.
+
+Ti rispondo in modo pratico.
+
+Cosa è meglio completare su Jules prima di portarti il branch in locale
+
+Su Jules io chiuderei bene le parti di codice funzionale e di wiring, e solo il minimo indispensabile di test:
+
+- Task 11 – Types & Inngest
+
+ ▫ Schemi Zod in ‎⁠src/types/*⁠ completi per gli eventi che usi davvero (almeno quelli di Deep Research, Content, Publishing).
+
+ ▫ ‎⁠src/inngest/client.ts⁠ già configurato con gli schemi che usi (idealmente ‎⁠fromZod⁠, ma l’importante è che non ci siano buchi che poi esplodono in runtime).
+
+- Task 3 – Brand
+
+ ▫ Prisma schema coerente e migrato.
+
+ ▫ API ‎⁠/api/brand⁠ + componenti Brand che compilano.
+
+- Task 14 – API
+
+ ▫ Route principali (‎⁠/api/research⁠, ‎⁠/api/content⁠, ‎⁠/api/publishing⁠) funzionanti, con Zod sui body e sugli status più importanti (200/201/400/404/500).
+
+ ▫ Inngest event ‎⁠deep.research.requested⁠ effettivamente inviato dalla POST research.
+
+- Task 4 – Deep Research core
+
+ ▫ Orchestrator con ‎⁠checkpointing: true⁠, uso di ‎⁠publish()⁠ e salvataggio ‎⁠ResearchJob⁠.
+
+ ▫ ‎⁠gather-context⁠ aggiornato a ‎⁠depth/breadth⁠ e chiamato dall’orchestrator.
+
+In pratica: tutto ciò che riguarda comportamento dell’app lo farei chiudere da Jules, così quando porti il branch in locale con TestSprite hai già una base “coerente” e non stai usando TestSprite per tappare buchi grossi di implementazione.
+
+Per i test:
+
+- Infra Jest/Playwright (Task 12): già c’è, ok così.
+
+- Non serve che Jules scriva una batteria completa di test Jest e Playwright: può bastare qualche test di base, l’infrastruttura e che ‎⁠npm run test:unit⁠ giri.
+
+Cosa puoi tranquillamente lasciare a TestSprite in locale
+
+Nella fase branch locale + TestSprite MCP ha molto più senso:
+
+- Bootstrap dei test mancanti:
+
+ ▫ Test di integrazione delle API (‎⁠/api/research⁠, ‎⁠/api/brand⁠, ecc.).
+
+ ▫ Test unit degli orchestrator Inngest e di ‎⁠gather-context⁠.
+
+- Playwright E2E:
+
+ ▫ Flusso completo: apri Deep Research, invii topic + depth/breadth, vedi progress + report.
+
+- Fix di edge case e dettagli di Zod:
+
+ ▫ Messaggi di errore più puliti.
+
+ ▫ Validazioni più strette su query params e body.
+
+- Messa a punto coverage:
+
+ ▫ Far passare i threshold 80%/90% con TestSprite che genera e aggiusta test.
+
+Qui TestSprite brilla: prende il codice che già funziona e costruisce sopra test + piccoli bugfix. Farlo fare a Jules in container rischia di essere più macchinoso e meno “iterativo” rispetto al tuo ciclo locale.
+
+Quindi: salto dei passaggi su Jules sì o no?
+
+Riassumendo la strategia:
+
+- Sì, puoi saltare una parte dei passaggi “test-heavy” su Jules, cioè:
+
+ ▫ non forzare Jules a scrivere tutti i test Jest/E2E richiesti nei PRP;
+
+ ▫ non serve arrivare al 100% del coverage richiesto da AGENTS.md usando solo Jules.
+
+- No, non salterei i passaggi di implementazione funzionale:
+
+ ▫ orchestrator, eventi, route API, Zod base, UI minima → questi è meglio che siano già ragionevolmente stabili nel branch ‎⁠phase-2--tasks-parallel-wave--11-3-4-14-12⁠.
+
+Workflow consigliato:
+
+1. Lascia che Jules completi il core codice per i 5 PRP (anche se alcuni test rimangono basici).
+
+2. Dal branch ‎⁠phase-2--tasks-parallel-wave--11-3-4-14-12⁠:
+
+ ▫ crei branch locale dedicato a TestSprite (es. ‎⁠phase-2-testsprite-e2e⁠).
+
+3. In locale:
+
+ ▫ esegui TestSprite MCP (bootstrap test, E2E, refactor/fix),
+
+ ▫ aggiusti con mano dove serve.
+
+4. Quando sei soddisfatto:
+
+ ▫ push sul branch remoto (lo stesso o uno nuovo),
+
+ ▫ poi PR verso ‎⁠main⁠.
+
+In altre parole: non è necessario completamento “totale” dei PRP lato Jules (soprattutto sulla parte test), ma è molto utile arrivare con lui a una implementazione completa e compilante. Il ciclo TestSprite lo vedrei come fase di hardening sopra quel lavoro, non come sostituto del lavoro di Jules.
