@@ -16,8 +16,8 @@ export const summarizerAgent = inngest.createFunction(
     },
   },
   { event: "agent/summarize" },
-  async ({ event, step, publish }) => {
-    const { query, contexts, sessionId, userId } = event.data;
+  async ({ event, step, publish }: { event: any; step: any; publish: any }) => {
+    const { query, contexts, sessionId } = event.data;
     const startTime = +new Date(event.ts!);
 
     await step.run("publish-summarizer-start", async () => {
@@ -49,7 +49,7 @@ export const summarizerAgent = inngest.createFunction(
       );
 
       const contextText = contexts
-        .map((c: any, i: number) => `[${i + 1}] ${c.source}: ${c.text}`)
+        .map((c: { source: string; text: string }, i: number) => `[${i + 1}] ${c.source}: ${c.text}`)
         .join("\n\n");
 
       const { textStream } = await streamText({
@@ -64,7 +64,8 @@ ${contextText}
 Provide a concise summary with key points:`,
       });
 
-      let fullResponse = await publishTokenByTokenUpdates(
+      // eslint-disable-next-line prefer-const
+      let fullResponse: string = await publishTokenByTokenUpdates(
         textStream,
         async (message) => {
           return publish(

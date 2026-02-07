@@ -328,7 +328,7 @@ export function RealtimeResearchStatus({
           ref={sourcesSectionRef}
         >
           <h3 className="text-sm font-semibold text-slate-300 mb-3">
-            Data Sources ({sourceResults.length}/4)
+            Data Sources ({sourceResults.length}/3)
           </h3>
           <div className="grid grid-cols-2 gap-3">
             {sourceResults.map((source) => (

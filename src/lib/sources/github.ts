@@ -22,9 +22,11 @@ export async function fetchGithub(query: string): Promise<GithubResult[]> {
       return [];
     }
 
-    const data = await response.json();
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const data: any = await response.json();
 
     return (
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       data.items?.map((item: any) => ({
         source: "github" as const,
         text: item.description || item.name || "",

@@ -1,5 +1,10 @@
 # Research & Publishing Suite - Updated Context Engineering
 
+> **Status**: Phase 2 - T3, T4, T12, T13, T14 Validation  
+> **Date**: February 7, 2026  
+> **Branch**: `phase-2--tasks-parallel-wave--11-3-4-14-12`  
+> **Build**: ✅ Frontend Build Resolved
+
 ## Project Overview
 
 Unified **Research & Publishing Suite** unifying:
@@ -83,14 +88,14 @@ database: publishing_queue
 # 1. Fork + Create Codespace
 # Click "Code" → "Codespaces" → "Create codespace on main"
 
-# 2. Wait for postCreateCommand: npm install && npm run setup:db
+# 2. Wait for postCreateCommand: npm install && npx prisma generate
 
 # 3. Two terminals:
 # Terminal 1:
 npm run dev           # Next.js port 3000
 
 # Terminal 2:
-npm run inngest:dev   # Inngest port 8288
+npm run inngestdev   # Inngest port 8288
 
 # 4. Visit http://localhost:3000
 ```
@@ -174,7 +179,7 @@ Use Claude Code with this CLAUDE.md + knowledge files:
 ```bash
 # In Claude Code terminal:
 npm run dev           # Then Copilot can see real errors
-npm run inngest:dev   # In another pane
+npm run inngestdev   # In another pane
 
 # Claude Code reads this file automatically
 # Reference specific knowledge: @knowledge/inngest-patterns.md

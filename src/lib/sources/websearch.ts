@@ -17,9 +17,11 @@ export async function fetchWebSearch(query: string): Promise<WebSearchResult[]> 
       return [];
     }
 
-    const data = await response.json();
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const data: any = await response.json();
 
     return (
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       data.organic_results?.map((result: any) => ({
         source: "websearch" as const,
         text: result.snippet || "",

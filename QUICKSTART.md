@@ -2,7 +2,8 @@
 
 > **Goal**: Get running in 30 minutes  
 > **Environment**: GitHub Codespace (Cloud)  
-> **Last Updated**: January 28, 2026
+> **Last Updated**: February 7, 2026  
+> **Status**: Phase 2 - Build Fixed & Ready for Testing
 
 ---
 
@@ -67,10 +68,10 @@ npx prisma generate
 
 # 3. Start development servers
 npm run dev         # Terminal 1: Next.js http://localhost:3000
-npm run inngest:dev # Terminal 2: Inngest http://localhost:8288
+npm run inngestdev # Terminal 2: Inngest http://localhost:8288
 
 # Or run both with:
-npm run dev:all
+npm run devall
 ```
 
 ---

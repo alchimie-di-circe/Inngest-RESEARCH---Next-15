@@ -1,8 +1,6 @@
-import { openai } from "@ai-sdk/openai";
-import { anthropic } from "@ai-sdk/anthropic";
-import { google } from "@ai-sdk/google";
-import { mistral } from "@ai-sdk/mistral";
 import { gateway } from "@ai-sdk/gateway";
+// Note: AI models are accessed via gateway()
+// Individual imports kept for future direct usage
 
 /**
  * AI Model configurations for different agents

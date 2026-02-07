@@ -1,8 +1,6 @@
 
 import { PrismaClient } from '@prisma/client';
-import { Pool } from '@neondatabase/serverless';
 import { PrismaNeon } from '@prisma/adapter-neon';
-import ws from 'ws';
 
 declare global {
   // eslint-disable-next-line no-var
@@ -12,10 +10,21 @@ declare global {
 const prismaClientSingleton = () => {
   const connectionString = process.env.DATABASE_URL;
   if (!connectionString) {
-    throw new Error('DATABASE_URL is required to initialize the database client');
+    // During build time, return a proxy that throws on actual usage
+    // This allows the build to succeed while preventing runtime misuse
+    console.warn('DATABASE_URL not set - database operations will fail at runtime');
+    return new Proxy({} as PrismaClient, {
+      get(_target, prop) {
+        // Allow these properties to prevent Promise-related errors during build
+        if (prop === 'then' || prop === '$connect' || prop === '$disconnect') {
+          return undefined;
+        }
+        throw new Error('DATABASE_URL is required to use the database. Please set it in your environment variables.');
+      },
+    });
   }
-  const neon = new Pool({ connectionString });
-  const adapter = new PrismaNeon(neon, { WebSocket: ws });
+  // PrismaNeon adapter takes connectionString directly
+  const adapter = new PrismaNeon({ connectionString });
   return new PrismaClient({ adapter });
 };
 

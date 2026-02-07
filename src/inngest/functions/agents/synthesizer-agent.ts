@@ -15,8 +15,8 @@ export const synthesizerAgent = inngest.createFunction(
     },
   },
   { event: "agent/synthesize" },
-  async ({ event, step, publish }) => {
-    const { query, agentResults, sessionId, userId } = event.data;
+  async ({ event, step, publish }: { event: any; step: any; publish: any }) => {
+    const { query, agentResults, sessionId } = event.data;
     const startTime = +new Date(event.ts!);
 
     await step.run("publish-synthesizer-start", async () => {
@@ -42,7 +42,7 @@ export const synthesizerAgent = inngest.createFunction(
 
       // Format agent responses for synthesis
       const agentInputs = agentResults
-        .map((result) => {
+        .map((result: any) => {
           const agentName =
             result.agent.charAt(0).toUpperCase() + result.agent.slice(1);
           return `--- ${agentName} Agent (${result.model}) ---\n${result.response}`;
@@ -80,7 +80,7 @@ Your synthesized response:`,
             isComplete: false,
             timestamp: new Date().toISOString(),
           })
-        ).catch((err) => console.error("Error publishing chunk:", err));
+        ).catch((err: any) => console.error("Error publishing chunk:", err));
 
         // Also publish to agent-chunk for consistency
         publish(
@@ -90,7 +90,7 @@ Your synthesized response:`,
             isComplete: false,
             timestamp: new Date().toISOString(),
           })
-        ).catch((err) => console.error("Error publishing agent chunk:", err));
+        ).catch((err: any) => console.error("Error publishing agent chunk:", err));
       }
 
       // Signal completion

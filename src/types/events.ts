@@ -3,6 +3,14 @@ import { DeepResearchReportSchema } from './research';
 import { ContextBriefSchema } from './research';
 import { ContentDraftSchema } from './content';
 
+// Research Query Submission Event
+export const ResearchQuerySubmittedSchema = z.object({
+  query: z.string(),
+  sessionId: z.string(),
+  userId: z.string(),
+  jobId: z.string(),
+});
+
 // Deep Research Events
 export const DeepResearchStartedSchema = z.object({
   researchId: z.string(),
@@ -56,6 +64,7 @@ export const ContentPublishingCompletedSchema = z.object({
 
 // All event schemas
 export const EventSchemas = {
+  'research/query.submitted': ResearchQuerySubmittedSchema,
   'deep.research.started': DeepResearchStartedSchema,
   'deep.research.completed': DeepResearchCompletedSchema,
   'context.research.started': ContextResearchStartedSchema,

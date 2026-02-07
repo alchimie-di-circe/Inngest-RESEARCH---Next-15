@@ -330,7 +330,7 @@ container-use delete --all            # Remove all containers
 
 | Level | Environment | Command | Purpose |
 |-------|-------------|---------|---------|
-| **1** | Local Dev (Codespace) | `npm run inngest:dev` | Dev Server on :8288, auto-discovery |
+| **1** | Local Dev (Codespace) | `npm run inngestdev` | Dev Server on :8288, auto-discovery |
 | **2** | Vercel Preview | `git push origin feature/x` | Auto-deploy, real APIs test |
 | **3** | Production | `git push origin main` | Live deployment |
 
@@ -1135,7 +1135,7 @@ Before pushing to main:
 # IDE Development (Local)
 wallaby watch                # Watch unit tests (Wallaby MCP in IDE)
 npm run dev                  # Start Next.js + Inngest
-npm run inngest:dev          # Start Inngest CLI in separate terminal
+npm run inngestdev         # Start Inngest CLI in separate terminal
 
 # Testing (Delegated)
 mcp invoke testsprite --test tests/integration/FILE.test.ts   # Integration test
@@ -1314,7 +1314,7 @@ container-use diff/merge/apply {id}
 # CLOUD CODESPACE (full development)
 npm install
 npm run dev              # Next.js :3000
-npm run inngest:dev      # Inngest :8288
+npm run inngestdev      # Inngest :8288
 npm run test:ci          # Jest
 
 # MCP TOOLS (via agent)

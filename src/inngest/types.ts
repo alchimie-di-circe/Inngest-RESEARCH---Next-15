@@ -8,11 +8,6 @@ export interface ContextItem {
   relevance?: number;
 }
 
-export interface ArxivResult extends ContextItem {
-  source: "arxiv";
-  published: string;
-}
-
 export interface GithubResult extends ContextItem {
   source: "github";
 }

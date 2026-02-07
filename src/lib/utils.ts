@@ -21,6 +21,7 @@ export function formatTimestamp(timestamp: string): string {
 
 export async function publishTokenByTokenUpdates(
   textStream: AsyncIterableStream<string>,
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   callback: (message: any) => Promise<any>
 ) {
   let fullResponse = "";

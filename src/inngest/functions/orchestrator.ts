@@ -14,7 +14,7 @@ export const orchestrateMultiAgent = inngest.createFunction(
     name: 'Multi-Agent Research Orchestrator',
     concurrency: { limit: 50 },
     rateLimit: { limit: 100, period: '1m' },
-    onFailure: async ({ event }) => {
+    onFailure: async ({ event }: { event: any }) => {
       const originalEvent = event.data.event.data as {
         jobId?: string;
       };
@@ -27,7 +27,7 @@ export const orchestrateMultiAgent = inngest.createFunction(
     },
   },
   { event: 'research/query.submitted' },
-  async ({ event, step, publish }) => {
+  async ({ event, step, publish }: { event: any; step: any; publish: any }) => {
     const { query, userId, sessionId, jobId } = event.data as {
       query: string;
       userId: string;
@@ -122,6 +122,7 @@ export const orchestrateMultiAgent = inngest.createFunction(
         function: analystAgent,
         data: {
           query,
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
           contexts: topContexts as any,
           sessionId,
           userId,
@@ -131,6 +132,7 @@ export const orchestrateMultiAgent = inngest.createFunction(
         function: summarizerAgent,
         data: {
           query,
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
           contexts: topContexts as any,
           sessionId,
           userId,
@@ -140,6 +142,7 @@ export const orchestrateMultiAgent = inngest.createFunction(
         function: factCheckerAgent,
         data: {
           query,
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
           contexts: topContexts as any,
           sessionId,
           userId,
@@ -149,6 +152,7 @@ export const orchestrateMultiAgent = inngest.createFunction(
         function: classifierAgent,
         data: {
           query,
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
           contexts: topContexts as any,
           sessionId,
           userId,

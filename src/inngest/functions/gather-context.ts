@@ -1,6 +1,5 @@
 import { inngest } from '../client';
 import { researchChannel } from '../channels';
-import { fetchArxiv } from '@/lib/sources/arxiv';
 import { fetchGithub } from '@/lib/sources/github';
 import { fetchVectorDB } from '@/lib/sources/vectordb';
 import { fetchWebSearch } from '@/lib/sources/websearch';
@@ -16,7 +15,7 @@ export const gatherContext = inngest.createFunction(
     rateLimit: { limit: 100, period: '1m' },
   },
   { event: 'research/gather-context' },
-  async ({ event, step, publish }) => {
+  async ({ event, step, publish }: { event: any; step: any; publish: any }) => {
     const { query, userId, sessionId } = event.data;
 
     // Publish workflow started
@@ -50,7 +49,7 @@ export const gatherContext = inngest.createFunction(
         researchChannel(sessionId).progress({
           step: 'fetch-sources',
           status: 'in_progress',
-          message: 'Fetching context from ArXiv, GitHub, VectorDB, and Web Search in parallel',
+          message: 'Fetching context from GitHub, VectorDB, and Web Search in parallel',
           timestamp: new Date().toISOString(),
         })
       );
@@ -60,7 +59,6 @@ export const gatherContext = inngest.createFunction(
       console.log(`Fetching contexts for query: "${query}"`);
 
       const results = await Promise.allSettled([
-        fetchArxiv(query),
         fetchGithub(query),
         fetchVectorDB(query),
         fetchWebSearch(query),
@@ -69,7 +67,7 @@ export const gatherContext = inngest.createFunction(
       const allContexts: ContextItem[] = [];
 
       results.forEach((result, index) => {
-        const sources = ['ArXiv', 'GitHub', 'VectorDB', 'WebSearch'];
+        const sources = ['GitHub', 'VectorDB', 'WebSearch'];
         if (result.status === 'fulfilled') {
           console.log(`✓ ${sources[index]}: ${result.value.length} results`);
           allContexts.push(...result.value);
@@ -82,7 +80,7 @@ export const gatherContext = inngest.createFunction(
     });
 
     // Publish source results (one by one for better UX)
-    const sources = ['ArXiv', 'GitHub', 'VectorDB', 'WebSearch'];
+    const sources = ['GitHub', 'VectorDB', 'WebSearch'];
     for (let i = 0; i < results.length; i++) {
       await step.run(`publish-source-${sources[i].toLowerCase()}`, async () => {
         const result = results[i];
@@ -148,7 +146,7 @@ export const gatherContext = inngest.createFunction(
 
     const embeddings = await step.run('generate-embeddings', async () => {
       console.log(`Generating embeddings for ${contexts.length} contexts`);
-      return await generateEmbeddings(contexts.map((c) => c.text));
+      return await generateEmbeddings(contexts.map((c: any) => c.text));
     });
 
     await step.run('publish-embeddings-complete', async () => {

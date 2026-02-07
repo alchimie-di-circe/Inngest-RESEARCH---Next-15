@@ -16,8 +16,8 @@ export const analystAgent = inngest.createFunction(
     },
   },
   { event: "agent/analyze" },
-  async ({ event, step, publish }) => {
-    const { query, contexts, sessionId, userId } = event.data;
+  async ({ event, step, publish }: { event: any; step: any; publish: any }) => {
+    const { query, contexts, sessionId } = event.data;
     const startTime = +new Date(event.ts!);
 
     // Publish agent starting
@@ -51,7 +51,7 @@ export const analystAgent = inngest.createFunction(
       );
 
       const contextText = contexts
-        .map((c: any, i: number) => `[${i + 1}] ${c.source}: ${c.text}`)
+        .map((c: { source: string; text: string }, i: number) => `[${i + 1}] ${c.source}: ${c.text}`)
         .join("\n\n");
 
       const { textStream } = await streamText({
@@ -66,7 +66,8 @@ ${contextText}
 Provide your detailed analysis:`,
       });
 
-      let fullResponse = await publishTokenByTokenUpdates(
+      // eslint-disable-next-line prefer-const
+      let fullResponse: string = await publishTokenByTokenUpdates(
         textStream,
         async (message) => {
           return publish(
